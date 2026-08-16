@@ -1,0 +1,40 @@
+{
+    "id": "niuren.blog",
+    "name": "朋友圈博客",
+    "description": "模仿朋友圈风格轻博客，支持前台发布动态与文章。",
+    "version": "1.0.1",
+    "author": "CmsPro",
+    "require": {
+        "php": ">=8.1",
+        "cmspro": ">=5.0.0"
+    },
+    "providers": ["ServiceProvider"],
+    "install": "Install",
+    "menus": [
+        {
+            "title": "朋友圈博客",
+            "icon": "fa fa-comments-o",
+            "path": "/admin/niuren/blog",
+            "code": "niuren_blog_root",
+            "order": 100,
+            "children": [
+                { "title": "文章管理", "icon": "fa fa-file-text-o", "path": "/admin/niuren/blog/posts", "code": "niuren_blog_posts", "order": 1 }
+            ]
+        }
+    ],
+    "config_groups": [
+        {
+            "name": "blog_settings",
+            "title": "博客设置",
+            "items": [
+                { "name": "posts_per_page", "title": "每页文章数", "type": "number", "value": "10", "tips": "前台列表每页文章数量" }
+            ]
+        }
+    ],
+    "permissions": [
+        { "code": "niuren.blog.manage", "name": "博客管理" },
+        { "code": "niuren.blog.post.create", "name": "创建文章" },
+        { "code": "niuren.blog.post.edit", "name": "编辑文章" },
+        { "code": "niuren.blog.post.delete", "name": "删除文章" }
+    ]
+}

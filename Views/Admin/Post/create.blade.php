@@ -55,10 +55,23 @@ layui.use(['form', 'jquery'], function(){
     var form = layui.form;
 
     $.ajaxSetup({
-        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        statusCode: {
+            401: function () {
+                layer.msg('登录已过期，请重新登录', { icon: 2 });
+                setTimeout(function () {
+                    location.href = '{{ url('admin/login') }}' + '?redirect=' + encodeURIComponent(location.href);
+                }, 1500);
+            }
+        }
     });
 
     form.on('submit(save)', function(data){
+        var $btn = $(this);
+        if ($btn.hasClass('layui-btn-disabled')) return false;
+        $btn.addClass('layui-btn-disabled');
+        var loadIndex = layer.load(1);
+
         var url = '{{ isset($post) ? url('api/admin/niuren/blog/posts/'.$post->id) : url('api/admin/niuren/blog/posts/save') }}';
         var type = '{{ isset($post) ? 'PUT' : 'POST' }}';
 
@@ -67,10 +80,19 @@ layui.use(['form', 'jquery'], function(){
             type: type,
             data: data.field,
             success: function(res){
+                layer.close(loadIndex);
                 layer.msg(res.message || '保存成功');
                 setTimeout(function(){
                     location.href = '{{ url('admin/niuren/blog/posts') }}';
                 }, 600);
+            },
+            error: function(xhr){
+                layer.close(loadIndex);
+                $btn.removeClass('layui-btn-disabled');
+                if (xhr.status === 401) return;
+                var msg = '保存失败';
+                try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+                layer.msg(msg, { icon: 2 });
             }
         });
 

@@ -1,6 +1,6 @@
 # CmsPro-朋友圈博客-特性清单
 
-> 应用标识：`niuren.blog` ｜ 版本：1.0.1 ｜ 更新日期：2026-08-15
+> 应用标识：`niuren.blog` ｜ 版本：1.0.2 ｜ 更新日期：2026-08-18
 
 本文档系统整理朋友圈博客应用覆盖的 CMSPRO 框架特性及对应实现位置，作为应用开发与维护参考。
 
@@ -103,5 +103,6 @@ app/Apps/NiurenBlog/
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| 1.0.2 | 2026-08-18 | 验收修复：补齐后端权限校验（PostApiController 各方法 requirePermission）、Ajax 401 处理与 error 回调、表格 skin:false + 完整分页、防重复提交；新增 .exportignore/.gitignore/README.md；manifest 声明 home_routes 路由冲突检测；ServiceProvider 补充注释 |
 | 1.0.1 | 2026-08-15 | 按开发文档补齐规范：新增 doc/ 三份文档、icon.svg、Assets 静态资源（css/js）、PostService 服务层、应用级测试；修复前台路由双重前缀导致 404、Layui 模板未 @verbatim、表格缺 parseData、迁移表注释驱动兼容、manifest 菜单补 code |
 | 1.0.0 | 2026-01-01 | 初始版本：朋友圈风格轻博客，后台文章管理 + 前台动态流 |

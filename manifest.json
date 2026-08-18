@@ -2,7 +2,7 @@
     "id": "niuren.blog",
     "name": "朋友圈博客",
     "description": "模仿朋友圈风格轻博客，支持前台发布动态与文章。",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "author": "CmsPro",
     "require": {
         "php": ">=8.1",
@@ -10,6 +10,12 @@
     },
     "providers": ["ServiceProvider"],
     "install": "Install",
+    "home_routes": {
+        "/blog": "朋友圈动态流",
+        "/blog/write": "写动态",
+        "/blog/publish": "发布动态",
+        "/blog/{id}": "动态详情"
+    },
     "menus": [
         {
             "title": "朋友圈博客",

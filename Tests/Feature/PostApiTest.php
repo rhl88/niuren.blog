@@ -4,7 +4,9 @@ namespace App\Apps\NiurenBlog\Tests\Feature;
 
 use App\Apps\NiurenBlog\Models\Post;
 use App\Models\AdminUser;
+use Database\Seeders\AdminRoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -25,10 +27,21 @@ class PostApiTest extends TestCase
         $this->app->register(\App\Apps\NiurenBlog\ServiceProvider::class);
         $this->createTables();
 
+        // 种子 super_admin 角色，确保权限校验通过
+        $this->seed(AdminRoleSeeder::class);
+
         $this->admin = AdminUser::create([
             'username' => 'niuren_test_' . uniqid(),
             'password' => bcrypt('123456'),
             'status' => 1,
+        ]);
+
+        // 赋予 super_admin 角色（role_id=1），使 hasPermission 放行
+        DB::table('admin_user_roles')->insert([
+            'user_id' => $this->admin->id,
+            'role_id' => 1,
+            'create_time' => now(),
+            'update_time' => now(),
         ]);
     }
 

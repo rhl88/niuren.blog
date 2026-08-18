@@ -19,6 +19,8 @@ class PostApiController
      */
     public function list(Request $request): array
     {
+        $this->requirePermission('niuren.blog.manage');
+
         $paginator = $this->postService->listForAdmin(
             $request->only(['keyword', 'status']),
             (int) $request->query('page', 1),
@@ -38,6 +40,8 @@ class PostApiController
      */
     public function save(Request $request): array
     {
+        $this->requirePermission('niuren.blog.post.create');
+
         $post = $this->postService->create($this->validated($request));
 
         return ApiResponse::success($post, '保存成功');
@@ -48,6 +52,8 @@ class PostApiController
      */
     public function update(Request $request, int $id): array
     {
+        $this->requirePermission('niuren.blog.post.edit');
+
         $post = Post::findOrFail($id);
         $post = $this->postService->update($post, $this->validated($request));
 
@@ -59,6 +65,8 @@ class PostApiController
      */
     public function delete(int $id): array
     {
+        $this->requirePermission('niuren.blog.post.delete');
+
         $post = Post::findOrFail($id);
         $this->postService->delete($post);
 
@@ -76,5 +84,23 @@ class PostApiController
             'images' => 'nullable|array',
             'status' => 'required|integer|in:0,1',
         ]);
+    }
+
+    /**
+     * 校验当前管理员是否具备指定权限
+     *
+     * 后端校验是安全兜底，前端 data-permission 隐藏按钮只是体验优化。
+     * 系统 AdminUser::hasPermission() 内部已对 super_admin 角色直接放行。
+     *
+     * @param string $code 权限码，如 niuren.blog.post.create
+     * @throws \Illuminate\Auth\Access\AuthorizationException 无权限时抛出
+     */
+    protected function requirePermission(string $code): void
+    {
+        $user = auth('admin')->user();
+
+        if ($user === null || ! $user->hasPermission($code)) {
+            abort(403, '无访问权限');
+        }
     }
 }

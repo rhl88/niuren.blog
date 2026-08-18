@@ -51,19 +51,41 @@ layui.use(['form', 'jquery'], function(){
     var form = layui.form;
 
     $.ajaxSetup({
-        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        statusCode: {
+            401: function () {
+                layer.msg('登录已过期，请重新登录', { icon: 2 });
+                setTimeout(function () {
+                    location.href = '{{ url('login') }}' + '?redirect=' + encodeURIComponent(location.href);
+                }, 1500);
+            }
+        }
     });
 
     form.on('submit(publish)', function(data){
+        var $btn = $(this);
+        if ($btn.hasClass('layui-btn-disabled')) return false;
+        $btn.addClass('layui-btn-disabled');
+        var loadIndex = layer.load(1);
+
         $.ajax({
             url: '{{ url('blog/publish') }}',
             type: 'POST',
             data: data.field,
             success: function(res){
+                layer.close(loadIndex);
                 layer.msg(res.message || '发布成功');
                 setTimeout(function(){
                     location.href = '{{ url('blog') }}';
                 }, 600);
+            },
+            error: function(xhr){
+                layer.close(loadIndex);
+                $btn.removeClass('layui-btn-disabled');
+                if (xhr.status === 401) return;
+                var msg = '发布失败';
+                try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+                layer.msg(msg, { icon: 2 });
             }
         });
         return false;

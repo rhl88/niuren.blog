@@ -62,7 +62,15 @@ layui.use(['table', 'form', 'jquery'], function(){
     var $ = layui.jquery;
 
     $.ajaxSetup({
-        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        statusCode: {
+            401: function () {
+                layer.msg('登录已过期，请重新登录', { icon: 2 });
+                setTimeout(function () {
+                    location.href = '{{ url('admin/login') }}' + '?redirect=' + encodeURIComponent(location.href);
+                }, 1500);
+            }
+        }
     });
 
     var table = layui.table;
@@ -70,7 +78,13 @@ layui.use(['table', 'form', 'jquery'], function(){
     table.render({
         elem: '#postTable',
         url: '{{ url('api/admin/niuren/blog/posts/list') }}',
-        page: true,
+        skin: false,
+        page: {
+            layout: ['count', 'prev', 'page', 'next', 'limit', 'skip'],
+            groups: 5,
+            limit: 10,
+            limits: [10, 20, 50, 100]
+        },
         // 接口返回 { code, data: { list, total } }，需映射为 Layui 表格格式
         parseData: function(res){
             return {
@@ -102,6 +116,12 @@ layui.use(['table', 'form', 'jquery'], function(){
                     success: function(res){
                         layer.msg(res.message || '删除成功');
                         table.reload('postTable');
+                    },
+                    error: function(xhr){
+                        if (xhr.status === 401) return;
+                        var msg = '删除失败';
+                        try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+                        layer.msg(msg, { icon: 2 });
                     }
                 });
             });

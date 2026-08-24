@@ -306,20 +306,45 @@
                 });
         }
 
-        // ··· 浮层：展示 / 收起（同一时刻仅一个）
+        // ··· 浮层：展示时定位到触发按钮，收起时淡出（同一时刻仅一个）
         $(document).on('click', '.mom-more', function () {
-            var $pop = $(this).closest('.mom-card').find('> .mom-pop');
-            var visible = !$pop.is('[hidden]');
-            $('.mom-pop').attr('hidden', '');
-            if (!visible) { $pop.removeAttr('hidden'); }
+            var $btn = $(this);
+            var $pop = $btn.closest('.mom-card').find('> .mom-pop');
+            var visible = $pop.hasClass('show');
+            hidePop();
+            if (!visible) { showPop($pop, $btn); }
         });
 
-        // 点赞
+        function showPop($pop, $btn) {
+            var rect = $btn[0].getBoundingClientRect();
+            $pop.removeAttr('hidden').addClass('show');
+            var pw = $pop.outerWidth();
+            var ph = $pop.outerHeight();
+            var left = Math.min(Math.max(rect.right - pw, 8), window.innerWidth - pw - 8);
+            // 优先显示在触发按钮下方，底部不足时翻转到按钮上方
+            var top = rect.bottom + 6;
+            if (top + ph > window.innerHeight - 8) { top = rect.top - ph - 6; }
+            $pop.css({ left: left + 'px', top: top + 'px' });
+        }
+
+        function hidePop($pop) {
+            $pop = $pop || $('.mom-pop');
+            $pop.removeClass('show');
+            setTimeout(function () { if (!$pop.hasClass('show')) { $pop.attr('hidden', ''); } }, 180);
+        }
+
+        // 点赞：收起浮层并执行点赞
         $(document).on('click', '.mom-pop-like', function () {
             var $card = $(this).closest('.mom-card');
             var postId = $card.attr('data-post-id');
-            $card.find('> .mom-pop').attr('hidden', '');
+            hidePop($card.find('> .mom-pop'));
             toggleLike(postId, $(this));
+        });
+
+        // 点击浮层/触发按钮之外的区域收起
+        $(document).on('click', function (e) {
+            if ($(e.target).closest('.mom-pop, .mom-more').length) { return; }
+            hidePop();
         });
 
         /* -------------------------------------------------------------------
@@ -376,7 +401,7 @@
         // 评论按钮 / 浮层「评论」→ 打开输入条
         $(document).on('click', '.mom-comment-open, .mom-pop-comment', function () {
             var $card = $(this).closest('.mom-card');
-            $card.find('> .mom-pop').attr('hidden', '');
+            hidePop($card.find('> .mom-pop'));
             openCommentBar($card);
         });
 

@@ -519,15 +519,41 @@ body[data-page="feed"] .mom-feed {
 
 /* ---- 赞/评论 操作浮层 ---- */
 .mom-pop {
-    position: absolute;
-    z-index: 50;
-    top: -12px;
-    right: 0;
+    position: fixed;
+    z-index: 150;
     background: rgba(28, 28, 30, 0.96);
     border-radius: 6px;
     display: flex;
-    overflow: hidden;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px);
+    transition: opacity 0.18s, transform 0.18s, visibility 0.18s;
+}
+
+.mom-pop.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* hidden 属性兜底隐藏 */
+.mom-pop[hidden] {
+    display: none;
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* 浮层顶部小三角，指向触发按钮 */
+.mom-pop-arrow {
+    position: absolute;
+    left: 50%;
+    top: -6px;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 6px solid rgba(28, 28, 30, 0.96);
 }
 
 .mom-card {
@@ -621,6 +647,11 @@ body[data-page="feed"] .mom-feed {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+/* hidden 属性需显式压过 display:flex，否则遮罩常显无法收起 */
+.mom-viewer[hidden] {
+    display: none;
 }
 
 .mom-viewer img {

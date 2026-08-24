@@ -1,43 +1,119 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $post->title ? $post->title : '文章详情' }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#ffffff">
+    <title>{{ $post->title ?: '动态详情' }}</title>
     <link rel="stylesheet" href="{{ asset('CmsProUi/component/pear/css/pear.css') }}">
     <link rel="stylesheet" href="{{ asset('CmsProUi/font-awesome/4.7.0/css/font-awesome.min.css') }}">
     <link rel="stylesheet" href="{{ asset('apps/niuren.blog/css/style.css') }}">
 </head>
-<body>
-<div class="blog-wrap">
-    <div class="blog-header">
-        <a class="pear-btn" href="{{ url('blog') }}">
-            <i class="fa fa-arrow-left"></i> 返回列表
-        </a>
-    </div>
+<body data-page="detail">
 
-    <div class="blog-item blog-detail">
-        <div class="blog-item-header">
-            <div class="blog-avatar">博主</div>
-            <div class="blog-meta">
-                <div class="blog-name">博主</div>
-                <div class="blog-time">{{ $post->create_time }}</div>
+<!-- 顶部导航栏 -->
+<div class="mom-nav is-solid">
+    <a class="mom-nav-back" href="{{ url('blog') }}" title="返回">
+        <i class="fa fa-angle-left"></i>
+    </a>
+    <h1 class="mom-nav-title">动态详情</h1>
+    <div class="mom-nav-actions">
+        <button type="button" class="mom-icon-btn mom-theme-toggle" title="切换深浅色" data-action="theme">
+            <i class="fa fa-moon-o"></i>
+        </button>
+    </div>
+</div>
+
+<div class="mom-feed">
+    <article class="mom-card" data-post-id="{{ $post->id }}">
+        <header class="mom-card-head">
+            <span class="mom-avatar">博</span>
+            <div class="mom-card-meta">
+                <span class="mom-name">博主</span>
+                @if($post->title)
+                    <h1 class="mom-detail-title">{{ $post->title }}</h1>
+                @endif
             </div>
-        </div>
-        <div class="blog-body">
-            @if($post->title)
-                <h1>{{ $post->title }}</h1>
+        </header>
+
+        <div class="mom-card-body is-expanded">
+            @if($post->content)
+                <div class="mom-text mom-text-full">{{ $post->content }}</div>
             @endif
-            <div class="blog-content">{{ $post->content }}</div>
+
             @if(!empty($post->images))
-                <div class="blog-images">
+                <div class="mom-grid mom-grid-{{ min(count($post->images), 9) }}"
+                     data-count="{{ count($post->images) }}">
                     @foreach($post->images as $img)
-                        <img src="{{ $img }}" alt="">
+                        <div class="mom-grid-cell">
+                            <img src="{{ $img }}" alt="" loading="lazy" data-full="{{ $img }}">
+                        </div>
                     @endforeach
                 </div>
             @endif
+
+            <div class="mom-meta">
+                <time class="mom-time" data-time="{{ $post->create_time }}">{{ $post->create_time }}</time>
+            </div>
         </div>
+
+        <!-- 点赞 + 评论区（灰底气泡） -->
+        <div class="mom-praise">
+            <div class="mom-like-row{{ in_array($post->id, $likedIds ?? []) ? ' liked' : '' }}">
+                <i class="mom-like-icon fa fa-thumbs-o-up"></i>
+                <span class="mom-like-nick">博主觉得很赞</span>
+                @if((int)($post->likes_count ?? 0) > 0)
+                    <span class="mom-like-count">(<span class="like-num">{{ (int)($post->likes_count ?? 0) }}</span>)</span>
+                @endif
+            </div>
+            <div class="mom-comment-list" data-post-id="{{ $post->id }}"></div>
+        </div>
+
+        <footer class="mom-card-foot">
+            <button type="button" class="mom-op mom-comment-open">
+                <i class="fa fa-comment-o"></i> 评论
+                @if((int)($post->comments_count ?? 0) > 0)
+                    <span class="mom-op-num">{{ (int)($post->comments_count ?? 0) }}</span>
+                @endif
+            </button>
+            <button type="button" class="mom-op mom-more" title="赞 / 更多">
+                <i class="fa fa-ellipsis-h"></i>
+            </button>
+        </footer>
+
+        <!-- 赞 / 评论 操作浮层 -->
+        <div class="mom-pop" hidden>
+            <a href="javascript:;" class="mom-pop-item mom-pop-like">
+                <i class="fa fa-thumbs-up"></i> 赞
+            </a>
+            <a href="javascript:;" class="mom-pop-item mom-pop-comment">
+                <i class="fa fa-comment-o"></i> 评论
+            </a>
+            <i class="mom-pop-arrow"></i>
+        </div>
+    </article>
+
+    <div class="mom-detail-actions">
+        <a href="{{ url('blog') }}" class="mom-back-btn"><i class="fa fa-chevron-left"></i> 返回朋友圈</a>
     </div>
+</div>
+
+<!-- 底部评论输入条 -->
+<div class="mom-comment-bar" hidden>
+    <div class="mom-comment-bar-inner">
+        <input type="text" class="mom-comment-input" maxlength="500" placeholder="评论">
+        <input type="text" class="mom-comment-nick" maxlength="50" placeholder="昵称(选填)" value="访客">
+        <button type="button" class="mom-comment-send" disabled>发送</button>
+    </div>
+</div>
+
+<!-- 图片全屏浏览 -->
+<div class="mom-viewer" hidden>
+    <button type="button" class="mom-viewer-close"><i class="fa fa-close"></i></button>
+    <button type="button" class="mom-viewer-prev"><i class="fa fa-chevron-left"></i></button>
+    <img src="" alt="" draggable="false">
+    <button type="button" class="mom-viewer-next"><i class="fa fa-chevron-right"></i></button>
 </div>
 
 <script src="{{ asset('CmsProUi/component/layui/layui.js') }}"></script>

@@ -47,8 +47,10 @@ class PostApiTest extends TestCase
 
     protected function createTables(): void
     {
+        // 文章表（含后续点赞/评论表，保证列表/详情附带计数查询可执行）
         if (!Schema::hasTable('app_niuren_blog_posts')) {
             (require base_path('app/Apps/NiurenBlog/Migrations/2026_01_01_000001_create_posts_table.php'))->up();
+            (require base_path('app/Apps/NiurenBlog/Migrations/2026_02_02_000001_create_post_likes_and_comments_tables.php'))->up();
         }
     }
 
@@ -77,10 +79,10 @@ class PostApiTest extends TestCase
 
     public function test_admin_list_filters_by_keyword_and_status(): void
     {
-        $this->createPost(['title' => '旅游日记', 'status' => Post::STATUS_PUBLISHED]);
-        $this->createPost(['title' => '工作周报', 'status' => Post::STATUS_DRAFT]);
+        $this->createPost(['title' => '旅游日记', 'content' => '今天去海边旅游了', 'status' => Post::STATUS_PUBLISHED]);
+        $this->createPost(['title' => '工作周报', 'content' => '本周工作日报汇总', 'status' => Post::STATUS_DRAFT]);
 
-        // 标题关键词筛选
+        // 内容关键词筛选
         $this->actingAs($this->admin, 'admin')
             ->getJson('/api/admin/niuren/blog/posts/list?keyword=旅游')
             ->assertOk()
@@ -199,6 +201,18 @@ class PostApiTest extends TestCase
             ->assertOk()
             ->assertViewIs('errors.404')
             ->assertDontSee('草稿内容');
+    }
+
+    public function test_web_show_renders_published_post_detail(): void
+    {
+        $post = $this->createPost(['title' => '详情标题', 'content' => '详情正文内容', 'status' => Post::STATUS_PUBLISHED]);
+
+        $response = $this->get('/blog/' . $post->id);
+
+        $response->assertOk()
+            ->assertViewIs('niuren.blog::Web.show')
+            ->assertSee('详情标题')
+            ->assertSee('详情正文内容');
     }
 
     public function test_web_write_page_is_accessible(): void

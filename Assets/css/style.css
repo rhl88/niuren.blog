@@ -1,159 +1,781 @@
-/* 朋友圈博客前台样式 */
+/* =========================================================================
+   朋友圈博客 前台样式（v1.3.0）
+   视觉对齐微信朋友圈：顶部悬浮导航、封面头部、左头像+右内容分栏卡片、
+   九宫格媒体、灰底点赞评论气泡、底部评论输入条、深色模式
+   ========================================================================= */
+
+:root {
+    --bg: #ffffff;                 /* 页面背景（浅色模式纯白） */
+    --card-bg: #ffffff;            /* 卡片背景 */
+    --praise-bg: #f7f7f7;          /* 点赞评论气泡灰底 */
+    --text-1: #191919;             /* 一级文字（正文/昵称） */
+    --text-2: #999999;             /* 二级文字（时间/辅助） */
+    --text-3: #b2b2b2;             /* 三级（占位/次要） */
+    --link: #576b95;               /* 可点击昵称/链接 蓝色 */
+    --nav-bg: rgba(255, 255, 255, 0.92); /* 导航滚动背景 */
+    --nav-text: #191919;
+    --nav-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    --danger: #fa5151;
+    --green: #07c160;
+    --input-bg: #f2f2f2;
+    --cover-from: #4a4a4a;
+    --cover-to: #2c2c2c;
+}
+
+/* 深色模式：手动切换（localStorage）或跟随系统 */
+[data-theme="dark"] {
+    --bg: #000000;
+    --card-bg: transparent;
+    --praise-bg: #1c1c1e;
+    --text-1: #ffffff;
+    --text-2: #8e8e93;
+    --text-3: #6c6c70;
+    --link: #0a84ff;
+    --nav-bg: rgba(28, 28, 30, 0.92);
+    --nav-text: #ffffff;
+    --nav-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    --input-bg: #1c1c1e;
+    --cover-from: #1c1c1e;
+    --cover-to: #0a0a0a;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+        --bg: #000000;
+        --card-bg: transparent;
+        --praise-bg: #1c1c1e;
+        --text-1: #ffffff;
+        --text-2: #8e8e93;
+        --text-3: #6c6c70;
+        --link: #0a84ff;
+        --nav-bg: rgba(28, 28, 30, 0.92);
+        --nav-text: #ffffff;
+        --nav-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+        --input-bg: #1c1c1e;
+        --cover-from: #1c1c1e;
+        --cover-to: #0a0a0a;
+    }
+}
+
 * {
     box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
 }
 
 body {
-    background: #ededed;
+    background: var(--bg);
+    color: var(--text-1);
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+    transition: background 0.2s, color 0.2s;
 }
 
-.blog-wrap {
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 20px 12px 40px;
+a {
+    color: var(--link);
+    text-decoration: none;
 }
 
-/* 顶部栏 */
-.blog-header {
+button {
+    font-family: inherit;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+/* =========================================================================
+   顶部导航栏
+   ========================================================================= */
+.mom-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    height: 44px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-    padding: 0 4px;
+    padding: 0 8px;
+    background: transparent;
+    color: #fff;
+    transition: background 0.25s, color 0.25s, box-shadow 0.25s;
 }
 
-.blog-header h1 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #333;
-    margin: 0;
+.mom-nav.is-solid {
+    background: var(--nav-bg);
+    color: var(--nav-text);
+    box-shadow: var(--nav-shadow);
+    backdrop-filter: saturate(180%) blur(10px);
+    -webkit-backdrop-filter: saturate(180%) blur(10px);
 }
 
-/* 动态卡片流 */
-.blog-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+/* 滚动后（feed 页）由透明渐变为浅灰 */
+.mom-nav.is-scrolled {
+    background: var(--nav-bg);
+    color: var(--nav-text);
+    box-shadow: var(--nav-shadow);
+    backdrop-filter: saturate(180%) blur(10px);
+    -webkit-backdrop-filter: saturate(180%) blur(10px);
 }
 
-.blog-item {
-    background: #fff;
-    border-radius: 8px;
-    padding: 16px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.blog-item-header {
+.mom-nav-back {
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    justify-content: flex-start;
+    color: inherit;
 }
 
-.blog-avatar {
-    width: 42px;
-    height: 42px;
+.mom-nav-back i {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.mom-nav-title {
+    flex: 1;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 500;
+    color: inherit;
+    white-space: nowrap;
+}
+
+.mom-nav-actions {
+    min-width: 88px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.mom-icon-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    font-size: 18px;
     border-radius: 6px;
-    background: linear-gradient(135deg, #5eb95e, #4a9d4a);
+}
+
+.mom-icon-btn:active {
+    opacity: 0.6;
+}
+
+/* 发表按钮（发布页顶部） */
+.mom-nav-post {
+    height: 30px;
+    padding: 0 14px;
+    border-radius: 15px;
+    background: var(--green);
     color: #fff;
     font-size: 14px;
+    transition: opacity 0.2s;
+}
+
+.mom-nav-post:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* =========================================================================
+   封面头部区域
+   ========================================================================= */
+.mom-cover {
+    position: relative;
+    height: 240px;
+    width: 100%;
+    overflow: hidden;
+    background: var(--card-bg);
+}
+
+.mom-cover-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, var(--cover-from), var(--cover-to));
+}
+
+/* 下拉封面视差容器留空给 JS 应用 scale */
+
+.mom-cover-user {
+    position: absolute;
+    right: 12px;
+    bottom: 16px;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.mom-cover-name {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.mom-cover-avatar {
+    width: 75px;
+    height: 75px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #5eb95e, #3b8f3b);
+    color: #fff;
+    font-size: 26px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    flex-shrink: 0;
+}
+
+/* =========================================================================
+   动态信息流
+   ========================================================================= */
+.mom-feed {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 12px 12px 40px;
+}
+
+/* 列表页封面遮挡导航，导航悬浮其上 */
+body[data-page="feed"] .mom-feed {
+    padding-top: 12px;
+}
+
+.mom-empty {
+    padding: 80px 20px;
+    text-align: center;
+    color: var(--text-2);
+    font-size: 14px;
+}
+
+.mom-card {
+    padding: 14px 0;
+}
+
+/* 左头像 + 右内容分栏 */
+.mom-card-head {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.mom-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #5eb95e, #3b8f3b);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 }
 
-.blog-name {
-    font-size: 15px;
-    font-weight: 600;
-    color: #333;
+.mom-card-meta {
+    flex: 1;
+    min-width: 0;
 }
 
-.blog-time {
-    font-size: 12px;
-    color: #999;
+.mom-name {
+    color: var(--link);
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.mom-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-1);
     margin-top: 2px;
 }
 
-/* 正文 */
-.blog-body h3 {
-    font-size: 16px;
-    margin: 0 0 8px;
-    color: #333;
+.mom-detail-title {
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--text-1);
+    margin-top: 4px;
+    line-height: 1.4;
 }
 
-.blog-detail .blog-body h1 {
-    font-size: 20px;
-    margin: 0 0 12px;
-    color: #333;
+/* 正文区：与头像右侧对齐 */
+.mom-card-body {
+    margin: 8px 0 0 52px;
 }
 
-.blog-body p {
+.mom-text {
     font-size: 15px;
     line-height: 1.7;
-    color: #444;
-    margin: 0;
+    color: var(--text-1);
     word-break: break-word;
     white-space: pre-wrap;
 }
 
-.blog-content {
+.mom-text-full {
     font-size: 15px;
     line-height: 1.8;
-    color: #444;
-    word-break: break-word;
-    white-space: pre-wrap;
 }
 
-/* 图片九宫格 */
-.blog-images {
+/* ---- 媒体九宫格 ---- */
+.mom-grid {
     display: grid;
+    gap: 3px;
+    margin-top: 8px;
+}
+
+/* 单图：独立展示，保持原比例，最大宽为内容区 70% */
+.mom-grid-1 {
+    display: block;
+    max-width: 70%;
+}
+
+.mom-grid-2,
+.mom-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.mom-grid-3,
+.mom-grid-5,
+.mom-grid-6,
+.mom-grid-7,
+.mom-grid-8,
+.mom-grid-9 {
     grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    margin-top: 10px;
 }
 
-.blog-images img {
-    width: 100%;
+.mom-grid-cell {
+    position: relative;
+    overflow: hidden;
+    background: var(--input-bg);
+    border-radius: 3px;
     aspect-ratio: 1 / 1;
+}
+
+/* 单图不强制正方形 */
+.mom-grid-1 .mom-grid-cell {
+    aspect-ratio: auto;
+    background: transparent;
+}
+
+.mom-grid-cell img {
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    border-radius: 4px;
-    background: #f5f5f5;
+    display: block;
 }
 
-/* 底部操作 */
-.blog-footer {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid #f2f2f2;
+/* 超长图：底部裁切 + "长图"角标 */
+.mom-grid-cell.is-long {
+    aspect-ratio: 3 / 4;
 }
 
-.blog-link {
-    color: #576b95;
-    font-size: 14px;
-    text-decoration: none;
-}
-
-.blog-link:hover {
-    opacity: 0.8;
-}
-
-/* 分页 */
-.blog-pager {
+.mom-grid-cell.is-long::after {
+    content: "长图";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-size: 10px;
     text-align: center;
-    color: #999;
-    font-size: 13px;
-    margin-top: 16px;
+    padding: 1px 0;
 }
 
-/* 响应式：小屏单列图片 */
-@media (max-width: 420px) {
-    .blog-images {
+/* ---- 附属信息行 ---- */
+.mom-meta {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mom-time {
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+/* =========================================================================
+   点赞 + 评论区（灰底气泡）
+   ========================================================================= */
+.mom-praise {
+    margin: 8px 0 0 52px;
+    background: var(--praise-bg);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 14px;
+}
+
+.mom-like-row {
+    padding: 4px 0;
+    color: var(--text-1);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mom-like-icon {
+    color: var(--text-2);
+    font-size: 15px;
+}
+
+.mom-like-row.liked .mom-like-icon {
+    color: var(--danger);
+}
+
+.mom-like-nick {
+    color: var(--link);
+    font-weight: 500;
+}
+
+.mom-like-count {
+    color: var(--text-2);
+}
+
+/* 有赞 + 有评论时用分隔线隔开 */
+.mom-like-row.has-divider {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    margin-bottom: 4px;
+    padding-bottom: 6px;
+}
+
+.mom-comment-list {
+    min-height: 0;
+}
+
+.comment-item {
+    padding: 3px 0;
+    word-break: break-word;
+}
+
+.comment-item .comment-nick {
+    color: var(--link);
+    font-weight: 500;
+}
+
+.comment-item .comment-text {
+    color: var(--text-1);
+}
+
+.comment-item.mine {
+    background: #fff7e6;
+    border-radius: 4px;
+    padding: 3px 6px;
+    margin: 2px -6px;
+}
+
+[data-theme="dark"] .comment-item.mine {
+    background: #3a3a3c;
+}
+
+.comments-empty,
+.comments-loading {
+    color: var(--text-2);
+    font-size: 13px;
+    padding: 4px 0;
+}
+
+/* =========================================================================
+   底部交互条
+   ========================================================================= */
+.mom-card-foot {
+    margin: 8px 0 0 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 6px;
+}
+
+.mom-op {
+    color: var(--text-2);
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    line-height: 1;
+}
+
+.mom-op i {
+    font-size: 15px;
+}
+
+.mom-op:active {
+    opacity: 0.55;
+}
+
+.mom-op-num {
+    color: var(--text-2);
+}
+
+/* ---- 赞/评论 操作浮层 ---- */
+.mom-pop {
+    position: absolute;
+    z-index: 50;
+    top: -12px;
+    right: 0;
+    background: rgba(28, 28, 30, 0.96);
+    border-radius: 6px;
+    display: flex;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.mom-card {
+    position: relative;
+}
+
+.mom-pop-item {
+    padding: 8px 14px;
+    color: #fff;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.mom-pop-item:active {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* =========================================================================
+   底部评论输入条
+   ========================================================================= */
+.mom-comment-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 120;
+    background: var(--bg);
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+}
+
+.mom-comment-bar-inner {
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.mom-comment-nick {
+    width: 76px;
+    min-width: 76px;
+    height: 34px;
+    border: none;
+    border-radius: 17px;
+    background: var(--input-bg);
+    color: var(--text-1);
+    font-size: 13px;
+    padding: 0 10px;
+    outline: none;
+}
+
+.mom-comment-input {
+    flex: 1;
+    height: 34px;
+    border: none;
+    border-radius: 17px;
+    background: var(--input-bg);
+    color: var(--text-1);
+    font-size: 14px;
+    padding: 0 14px;
+    outline: none;
+}
+
+.mom-comment-send {
+    height: 34px;
+    padding: 0 16px;
+    border-radius: 17px;
+    background: var(--green);
+    color: #fff;
+    font-size: 14px;
+    transition: opacity 0.2s;
+}
+
+.mom-comment-send:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* =========================================================================
+   图片全屏浏览
+   ========================================================================= */
+.mom-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mom-viewer img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transform-origin: center;
+    transition: transform 0.2s ease;
+}
+
+.mom-viewer.zooming img {
+    transform: scale(2);
+}
+
+.mom-viewer-close,
+.mom-viewer-prev,
+.mom-viewer-next {
+    position: absolute;
+    z-index: 2;
+    width: 44px;
+    height: 44px;
+    color: #fff;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mom-viewer-close {
+    top: 12px;
+    right: 12px;
+}
+
+.mom-viewer-prev {
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.mom-viewer-next {
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* =========================================================================
+   发布页（写动态）
+   ========================================================================= */
+.mom-writer {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 60px 16px 20px;
+}
+
+.mom-writer-content textarea {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--text-1);
+    resize: none;
+    outline: none;
+    font-family: inherit;
+}
+
+.mom-writer-content textarea::placeholder {
+    color: var(--text-3);
+}
+
+.mom-writer-images {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+}
+
+@media (max-width: 480px) {
+    .mom-writer-images {
         grid-template-columns: repeat(3, 1fr);
     }
+}
 
-    .blog-wrap {
-        padding: 14px 8px 32px;
-    }
+.mom-writer-imgwrap {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--input-bg);
+}
+
+.mom-writer-imgwrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.mom-writer-del {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mom-writer-add {
+    aspect-ratio: 1 / 1;
+    border: 1px dashed var(--text-3);
+    border-radius: 6px;
+    color: var(--text-2);
+    font-size: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mom-writer-count {
+    margin-top: 10px;
+    text-align: right;
+    font-size: 12px;
+    color: var(--text-3);
+}
+
+.mom-writer-tip {
+    max-width: 640px;
+    margin: 12px auto 0;
+    padding: 0 16px;
+    font-size: 12px;
+    color: var(--text-3);
+}
+
+.mom-detail-actions {
+    margin: 8px 0 0 52px;
+}
+
+.mom-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.mom-pager {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 8px 12px 24px;
+    text-align: center;
+    color: var(--text-2);
+    font-size: 13px;
 }

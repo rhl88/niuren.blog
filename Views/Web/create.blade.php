@@ -1,96 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>写文章</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#ffffff">
+    <title>发布动态</title>
     <link rel="stylesheet" href="{{ asset('CmsProUi/component/pear/css/pear.css') }}">
     <link rel="stylesheet" href="{{ asset('CmsProUi/font-awesome/4.7.0/css/font-awesome.min.css') }}">
     <link rel="stylesheet" href="{{ asset('apps/niuren.blog/css/style.css') }}">
 </head>
-<body>
-<div class="blog-wrap">
-    <div class="blog-header">
-        <a class="pear-btn" href="{{ url('blog') }}">
-            <i class="fa fa-arrow-left"></i> 返回列表
-        </a>
-    </div>
+<body data-page="writer">
 
-    <div class="layui-card">
-        <div class="layui-card-body">
-            <form class="layui-form" id="blogForm">
-                <div class="layui-form-item">
-                    <label class="layui-form-label">标题</label>
-                    <div class="layui-input-block">
-                        <input type="text" name="title" placeholder="可选标题" class="layui-input">
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <label class="layui-form-label">正文</label>
-                    <div class="layui-input-block">
-                        <textarea name="content" placeholder="分享你的想法..." class="layui-textarea" style="min-height: 260px;"></textarea>
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <div class="layui-input-block">
-                        <button class="pear-btn pear-btn-primary" lay-submit lay-filter="publish">发布</button>
-                        <a class="pear-btn" href="{{ url('blog') }}">取消</a>
-                    </div>
-                </div>
-            </form>
-        </div>
+<!-- 顶部导航栏 -->
+<div class="mom-nav is-solid">
+    <a class="mom-nav-back" href="{{ url('blog') }}" title="取消">
+        <i class="fa fa-angle-left"></i>
+    </a>
+    <h1 class="mom-nav-title">发表动态</h1>
+    <div class="mom-nav-actions">
+        <button type="button" class="mom-write-post mom-nav-post" disabled>发表</button>
     </div>
 </div>
 
-<script src="{{ asset('CmsProUi/component/layui/layui.js') }}"></script>
-<script src="{{ asset('CmsProUi/component/pear/pear.js') }}"></script>
-<script src="{{ asset('apps/niuren.blog/js/app.js') }}"></script>
+<div class="mom-writer">
+    <!-- 正文编辑区 -->
+    <div class="mom-writer-content">
+        <textarea class="mom-writer-textarea" rows="6" maxlength="2000"
+                  placeholder="这一刻的想法..."></textarea>
+    </div>
+
+    <!-- 图片预览区：缩略图 + 追加占位 -->
+    <div class="mom-writer-images" id="momWriterImages"></div>
+
+    <div class="mom-writer-count"><span id="momWriteCount">0</span>/2000</div>
+</div>
+
+<!-- 底部固定输入条热区说明 -->
+<div class="mom-writer-tip">支持纯文字或图文动态，图片最多 9 张。</div>
+
 <script>
-layui.use(['form', 'jquery'], function(){
-    var $ = layui.jquery;
-    var form = layui.form;
-
-    $.ajaxSetup({
-        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-        statusCode: {
-            401: function () {
-                layer.msg('登录已过期，请重新登录', { icon: 2 });
-                setTimeout(function () {
-                    location.href = '{{ url('login') }}' + '?redirect=' + encodeURIComponent(location.href);
-                }, 1500);
-            }
-        }
-    });
-
-    form.on('submit(publish)', function(data){
-        var $btn = $(this);
-        if ($btn.hasClass('layui-btn-disabled')) return false;
-        $btn.addClass('layui-btn-disabled');
-        var loadIndex = layer.load(1);
-
-        $.ajax({
-            url: '{{ url('blog/publish') }}',
-            type: 'POST',
-            data: data.field,
-            success: function(res){
-                layer.close(loadIndex);
-                layer.msg(res.message || '发布成功');
-                setTimeout(function(){
-                    location.href = '{{ url('blog') }}';
-                }, 600);
-            },
-            error: function(xhr){
-                layer.close(loadIndex);
-                $btn.removeClass('layui-btn-disabled');
-                if (xhr.status === 401) return;
-                var msg = '发布失败';
-                try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
-                layer.msg(msg, { icon: 2 });
-            }
-        });
-        return false;
-    });
-});
+    // 上传接口返回结构：{ code: 0, data: { url, path } }
+    window.NR_UPLOAD_URL = "{{ url('blog/upload') }}";
+    window.NR_PUBLISH_URL = "{{ url('blog/publish') }}";
+    window.NR_LIST_URL = "{{ url('blog') }}";
 </script>
+<script src="{{ asset('CmsProUi/component/layui/layui.js') }}"></script>
+<script src="{{ asset('apps/niuren.blog/js/app.js') }}"></script>
 </body>
 </html>

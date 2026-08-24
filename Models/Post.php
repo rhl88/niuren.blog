@@ -29,4 +29,12 @@ class Post extends Model
         'create_time' => 'datetime:Y-m-d H:i:s',
         'update_time' => 'datetime:Y-m-d H:i:s',
     ];
+
+    /**
+     * 点赞记录（visitor_id 在 PostLike 侧，uk_post_visitor 唯一约束）
+     */
+    public function likes()
+    {
+        return $this->hasMany(PostLike::class, 'post_id', 'id');
+    }
 }

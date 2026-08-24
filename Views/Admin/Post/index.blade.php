@@ -20,7 +20,7 @@
                     <div class="layui-inline">
                         <label class="layui-form-label">关键词</label>
                         <div class="layui-input-inline">
-                            <input type="text" name="keyword" placeholder="请输入标题关键词" class="layui-input">
+                            <input type="text" name="keyword" placeholder="请输入内容关键词" class="layui-input">
                         </div>
                     </div>
                     <div class="layui-inline">
@@ -96,7 +96,14 @@ layui.use(['table', 'form', 'jquery'], function(){
         },
         cols: [[
             {field: 'id', title: 'ID', width: 80},
-            {field: 'title', title: '标题'},
+            {field: 'content', title: '内容', templet: function(d){
+                var text = String(d.content || '').replace(/\s+/g, ' ').trim();
+                if (!text) return '<span style="color:#999;">[图片]</span>';
+                if (text.length > 30) text = text.substring(0, 30) + '…';
+                var box = document.createElement('div');
+                box.textContent = text;
+                return box.innerHTML;
+            }},
             {field: 'status', title: '状态', width: 100, templet: '#statusTpl'},
             {field: 'create_time', title: '创建时间', width: 180},
             {field: 'update_time', title: '更新时间', width: 180},

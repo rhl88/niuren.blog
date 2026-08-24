@@ -1,6 +1,6 @@
 # CmsPro-朋友圈博客-扩展指南
 
-> 应用标识：`niuren.blog` ｜ 版本：1.3.0 ｜ 更新日期：2026-08-24
+> 应用标识：`niuren.blog` ｜ 版本：1.4.0 ｜ 更新日期：2026-08-24
 
 本文档说明其他应用如何调用朋友圈博客的 Service 层、模型与数据，实现跨应用集成。
 
@@ -70,6 +70,8 @@ $post->save();
 
 - 表名 `app_niuren_blog_posts`，遵循应用数据库隔离前缀，跨应用查询请使用模型而非裸表名
 - 时间字段 `create_time` / `update_time` 已配置 `$casts`（`Y-m-d H:i:s`），序列化直接输出，无需二次格式化
+- 评论模型 `App\Apps\NiurenBlog\Models\PostComment`（表 `app_niuren_blog_post_comments`）：含 `nickname`/`content`/`visitor_id`/`email`/`website` 字段；昵称展示可用 `displayName()`（空昵称回退「访客」）
+- 点赞模型 `App\Apps\NiurenBlog\Models\PostLike`（表 `app_niuren_blog_post_likes`）：以 `(post_id, visitor_id)` 唯一约束去重，含 `nickname` 字段
 
 ## 三、配置读取
 
@@ -80,7 +82,23 @@ use App\Models\ConfigItem;
 
 // 每页文章数
 $perPage = (int) (ConfigItem::where('code', 'app_niuren_blog_posts_per_page')->value('value') ?: 10);
+
+// 发布密码（空串表示未配置密码，游客可直接发布）
+$pwd = (string) ConfigItem::where('code', 'app_niuren_blog_publish_password')->value('value');
 ```
+
+常用配置 code 一览（均为 `app_niuren_blog_` 前缀）：
+
+| 配置项 | code 后缀 | 类型 | 说明 |
+|--------|-----------|------|------|
+| 每页文章数 | `posts_per_page` | number | 前台每页条数 |
+| 博客名称 | `blog_name` | text | 前台博客/博主名称 |
+| 博主头像 | `blog_avatar` | text | 头像图片地址 |
+| 背景图 | `blog_bg` | text | 页头背景图片地址 |
+| 发布密码 | `publish_password` | text | 发布动态所需密码 |
+| 访问方式 | `access_mode` | select | root / path / domain 三选一 |
+| 路径前缀 | `access_path_prefix` | text | path 方式前缀 |
+| 绑定子域名 | `access_domain` | text | domain 方式域名 |
 
 ## 四、路由复用
 

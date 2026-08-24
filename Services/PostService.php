@@ -3,6 +3,8 @@
 namespace App\Apps\NiurenBlog\Services;
 
 use App\Apps\NiurenBlog\Models\Post;
+use App\Apps\NiurenBlog\Models\PostComment;
+use App\Apps\NiurenBlog\Models\PostLike;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
@@ -16,7 +18,7 @@ class PostService
     /**
      * 后台文章分页列表
      *
-     * @param array $filters 筛选条件：keyword（标题模糊）、status（0草稿/1发布）
+     * @param array $filters 筛选条件：keyword（内容模糊）、status（0草稿/1发布）
      * @param int $page 页码
      * @param int $pageSize 每页条数
      */
@@ -24,29 +26,39 @@ class PostService
     {
         return $this->buildQuery($filters)
             ->orderByDesc('id')
-            ->paginate($pageSize, ['id', 'title', 'status', 'create_time', 'update_time'], 'page', $page);
+            ->paginate($pageSize, ['id', 'title', 'content', 'status', 'create_time', 'update_time'], 'page', $page);
     }
 
     /**
-     * 前台已发布文章分页列表
+     * 前台已发布文章分页列表（附带点赞数/评论数）
      */
     public function listPublished(int $page = 1, int $pageSize = 10): LengthAwarePaginator
     {
-        return Post::query()
+        $paginator = Post::query()
             ->where('status', Post::STATUS_PUBLISHED)
             ->orderByDesc('id')
             ->paginate($pageSize, ['id', 'title', 'content', 'images', 'create_time'], 'page', $page);
+
+        $this->attachCounts($paginator->getCollection());
+
+        return $paginator;
     }
 
     /**
-     * 前台文章详情（仅已发布）
+     * 前台文章详情（仅已发布，附带点赞数/评论数）
      */
     public function findPublishedById(int $id): ?Post
     {
-        return Post::query()
+        $post = Post::query()
             ->where('id', $id)
             ->where('status', Post::STATUS_PUBLISHED)
             ->first();
+
+        if ($post !== null) {
+            $this->attachCounts(collect([$post]));
+        }
+
+        return $post;
     }
 
     /**
@@ -88,6 +100,36 @@ class PostService
     }
 
     /**
+     * 批量附加点赞数与评论数（分组聚合，避免 N+1 与 withCount 列冲突）
+     *
+     * @param iterable $posts Post 模型集合或数组
+     */
+    protected function attachCounts(iterable $posts): void
+    {
+        $ids = collect($posts)->pluck('id')->filter()->all();
+        if ($ids === []) {
+            return;
+        }
+
+        $likeCounts = PostLike::query()
+            ->whereIn('post_id', $ids)
+            ->selectRaw('post_id, COUNT(*) AS aggregate')
+            ->groupBy('post_id')
+            ->pluck('aggregate', 'post_id');
+
+        $commentCounts = PostComment::query()
+            ->whereIn('post_id', $ids)
+            ->selectRaw('post_id, COUNT(*) AS aggregate')
+            ->groupBy('post_id')
+            ->pluck('aggregate', 'post_id');
+
+        foreach ($posts as $post) {
+            $post->likes_count = (int) ($likeCounts[$post->id] ?? 0);
+            $post->comments_count = (int) ($commentCounts[$post->id] ?? 0);
+        }
+    }
+
+    /**
      * 构造后台筛选查询
      */
     protected function buildQuery(array $filters): \Illuminate\Database\Eloquent\Builder
@@ -96,7 +138,7 @@ class PostService
 
         $keyword = trim((string) ($filters['keyword'] ?? ''));
         if ($keyword !== '') {
-            $query->where('title', 'like', '%' . $keyword . '%');
+            $query->where('content', 'like', '%' . $keyword . '%');
         }
 
         if (isset($filters['status']) && $filters['status'] !== '') {

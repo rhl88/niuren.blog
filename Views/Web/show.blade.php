@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#ffffff">
-    <title>{{ $post->title ?: '动态详情' }}</title>
+    <title>{{ ($blog['name'] ?? '') . ($post->title ? ' - ' . $post->title : ' - 动态详情') }}</title>
     <link rel="stylesheet" href="{{ asset('CmsProUi/component/pear/css/pear.css') }}">
     <link rel="stylesheet" href="{{ asset('CmsProUi/font-awesome/4.7.0/css/font-awesome.min.css') }}">
     <link rel="stylesheet" href="{{ asset('apps/niuren.blog/css/style.css') }}">
@@ -28,9 +28,13 @@
 <div class="mom-feed">
     <article class="mom-card" data-post-id="{{ $post->id }}">
         <header class="mom-card-head">
-            <span class="mom-avatar">博</span>
+            @if(!empty($blog['avatar']))
+                <img class="mom-avatar" src="{{ $blog['avatar'] }}" alt="{{ $blog['name'] }}">
+            @else
+                <span class="mom-avatar">{{ mb_substr($blog['name'] ?? '博', 0, 1) }}</span>
+            @endif
             <div class="mom-card-meta">
-                <span class="mom-name">博主</span>
+                <span class="mom-name">{{ $blog['name'] ?? '博主' }}</span>
                 @if($post->title)
                     <h1 class="mom-detail-title">{{ $post->title }}</h1>
                 @endif
@@ -62,7 +66,7 @@
         <div class="mom-praise">
             <div class="mom-like-row{{ in_array($post->id, $likedIds ?? []) ? ' liked' : '' }}">
                 <i class="mom-like-icon fa fa-thumbs-o-up"></i>
-                <span class="mom-like-nick">博主觉得很赞</span>
+                <span class="mom-like-nick">@if(!empty($likersMap[$post->id] ?? [])){{ implode('、', $likersMap[$post->id]) }}觉得很赞@endif</span>
                 @if((int)($post->likes_count ?? 0) > 0)
                     <span class="mom-like-count">(<span class="like-num">{{ (int)($post->likes_count ?? 0) }}</span>)</span>
                 @endif
@@ -102,11 +106,21 @@
 <!-- 底部评论输入条 -->
 <div class="mom-comment-bar" hidden>
     <div class="mom-comment-bar-inner">
-        <input type="text" class="mom-comment-input" maxlength="500" placeholder="评论">
-        <input type="text" class="mom-comment-nick" maxlength="50" placeholder="昵称(选填)" value="访客">
+        <div class="mom-comment-input-row">
+            <textarea class="mom-comment-input" maxlength="500" placeholder="评论" rows="2"></textarea>
+            <button type="button" class="mom-comment-emoji" title="表情"><i class="fa fa-smile-o"></i></button>
+        </div>
+        <div class="mom-comment-meta">
+            <input type="text" class="mom-comment-nick" maxlength="50" placeholder="昵称(必填)">
+            <input type="text" class="mom-comment-email" maxlength="100" placeholder="邮箱(选填)">
+            <input type="text" class="mom-comment-website" maxlength="255" placeholder="网址(选填)">
+        </div>
         <button type="button" class="mom-comment-send" disabled>发送</button>
     </div>
 </div>
+
+<!-- 评论表情面板 -->
+<div class="mom-comment-emoji-panel" hidden></div>
 
 <!-- 图片全屏浏览 -->
 <div class="mom-viewer" hidden>

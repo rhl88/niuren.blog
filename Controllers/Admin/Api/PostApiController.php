@@ -15,7 +15,7 @@ class PostApiController
     public function __construct(protected PostService $postService) {}
 
     /**
-     * 文章分页列表（支持 keyword 标题模糊、status 状态筛选）
+     * 文章分页列表（支持 keyword 内容模糊、status 状态筛选）
      */
     public function list(Request $request): array
     {
@@ -78,12 +78,18 @@ class PostApiController
      */
     protected function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'title' => 'nullable|string|max:255',
-            'content' => 'required|string',
-            'images' => 'nullable|array',
+            'content' => 'required_without:images|string',
+            'images' => 'nullable|array|max:9',
+            'images.*' => 'string',
             'status' => 'required|integer|in:0,1',
         ]);
+
+        // 未携带 images 字段时显式置为空数组，确保编辑页“删光图片”能保存生效
+        $data['images'] = $data['images'] ?? [];
+
+        return $data;
     }
 
     /**

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#ffffff">
-    <title>朋友圈</title>
+    <title>{{ $blog['name'] }}</title>
     <link rel="stylesheet" href="{{ asset('CmsProUi/component/pear/css/pear.css') }}">
     <link rel="stylesheet" href="{{ asset('CmsProUi/font-awesome/4.7.0/css/font-awesome.min.css') }}">
     <link rel="stylesheet" href="{{ asset('apps/niuren.blog/css/style.css') }}">
@@ -17,7 +17,7 @@
     <a class="mom-nav-back" href="{{ url('/') }}" title="返回">
         <i class="fa fa-angle-left"></i>
     </a>
-    <h1 class="mom-nav-title">朋友圈</h1>
+    <h1 class="mom-nav-title">{{ $blog['name'] }}</h1>
     <div class="mom-nav-actions">
         <button type="button" class="mom-icon-btn mom-theme-toggle" title="切换深浅色" data-action="theme">
             <i class="fa fa-moon-o"></i>
@@ -30,10 +30,14 @@
 
 <!-- 封面头部区域：封面图 + 右下角用户信息 -->
 <div class="mom-cover">
-    <div class="mom-cover-bg"></div>
+    <div class="mom-cover-bg"@if(!empty($blog['bg'])) style="background-image:url('{{ $blog['bg'] }}');background-size:cover;background-position:center;"@endif></div>
     <div class="mom-cover-user">
-        <span class="mom-cover-name">博主</span>
-        <span class="mom-cover-avatar">博</span>
+        <span class="mom-cover-name">{{ $blog['name'] }}</span>
+        @if(!empty($blog['avatar']))
+            <span class="mom-cover-avatar"><img src="{{ $blog['avatar'] }}" alt="{{ $blog['name'] }}"></span>
+        @else
+            <span class="mom-cover-avatar">{{ mb_substr($blog['name'], 0, 1) }}</span>
+        @endif
     </div>
 </div>
 
@@ -42,9 +46,13 @@
     @forelse($list as $item)
         <article class="mom-card" data-post-id="{{ $item->id }}">
             <header class="mom-card-head">
-                <span class="mom-avatar">博</span>
+                @if(!empty($blog['avatar']))
+                    <img class="mom-avatar" src="{{ $blog['avatar'] }}" alt="{{ $blog['name'] }}">
+                @else
+                    <span class="mom-avatar">{{ mb_substr($blog['name'], 0, 1) }}</span>
+                @endif
                 <div class="mom-card-meta">
-                    <span class="mom-name">博主</span>
+                    <span class="mom-name">{{ $blog['name'] }}</span>
                     @if(!empty($item->title))
                         <h3 class="mom-title">{{ $item->title }}</h3>
                     @endif
@@ -76,7 +84,7 @@
             <div class="mom-praise">
                 <div class="mom-like-row{{ in_array($item->id, $likedIds ?? []) ? ' liked' : '' }}">
                     <i class="mom-like-icon fa fa-thumbs-o-up"></i>
-                    <span class="mom-like-nick">博主觉得很赞</span>
+                    <span class="mom-like-nick">@if(!empty($likersMap[$item->id] ?? [])){{ implode('、', $likersMap[$item->id]) }}觉得很赞@endif</span>
                     @if((int)($item->likes_count ?? 0) > 0)
                         <span class="mom-like-count">(<span class="like-num">{{ (int)($item->likes_count ?? 0) }}</span>)</span>
                     @endif
@@ -124,11 +132,21 @@
 <!-- 底部评论输入条（点击评论唤起，随软键盘弹起） -->
 <div class="mom-comment-bar" hidden>
     <div class="mom-comment-bar-inner">
-        <input type="text" class="mom-comment-input" maxlength="500" placeholder="评论">
-        <input type="text" class="mom-comment-nick" maxlength="50" placeholder="昵称(选填)" value="访客">
+        <div class="mom-comment-input-row">
+            <textarea class="mom-comment-input" maxlength="500" placeholder="评论" rows="2"></textarea>
+            <button type="button" class="mom-comment-emoji" title="表情"><i class="fa fa-smile-o"></i></button>
+        </div>
+        <div class="mom-comment-meta">
+            <input type="text" class="mom-comment-nick" maxlength="50" placeholder="昵称(必填)">
+            <input type="text" class="mom-comment-email" maxlength="100" placeholder="邮箱(选填)">
+            <input type="text" class="mom-comment-website" maxlength="255" placeholder="网址(选填)">
+        </div>
         <button type="button" class="mom-comment-send" disabled>发送</button>
     </div>
 </div>
+
+<!-- 评论表情面板 -->
+<div class="mom-comment-emoji-panel" hidden></div>
 
 <!-- 图片全屏浏览 -->
 <div class="mom-viewer" hidden>

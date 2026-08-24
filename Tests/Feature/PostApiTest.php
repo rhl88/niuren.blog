@@ -52,6 +52,33 @@ class PostApiTest extends TestCase
             (require base_path('app/Apps/NiurenBlog/Migrations/2026_01_01_000001_create_posts_table.php'))->up();
             (require base_path('app/Apps/NiurenBlog/Migrations/2026_02_02_000001_create_post_likes_and_comments_tables.php'))->up();
         }
+
+        // 评论/点赞扩展字段迁移依赖 config_groups 中的博客设置组，先确保组存在再执行
+        $this->ensureBlogConfigGroup();
+
+        (require base_path('app/Apps/NiurenBlog/Migrations/2026_03_01_000001_add_blog_profile_and_comment_meta.php'))->up();
+    }
+
+    /**
+     * 确保博客设置配置组存在（app_id 归本应用），供扩展字段/访问设置迁移与测试断言使用
+     */
+    protected function ensureBlogConfigGroup(): void
+    {
+        $exists = DB::table('config_groups')
+            ->where('code', 'app_niuren_blog_blog_settings')
+            ->exists();
+
+        if (! $exists) {
+            DB::table('config_groups')->insert([
+                'name'        => '博客设置',
+                'code'        => 'app_niuren_blog_blog_settings',
+                'app_id'      => 'niuren.blog',
+                'sort'        => 0,
+                'status'      => 1,
+                'create_time' => now(),
+                'update_time' => now(),
+            ]);
+        }
     }
 
     private function createPost(array $overrides = []): Post
@@ -224,5 +251,165 @@ class PostApiTest extends TestCase
     public function test_admin_api_requires_authentication(): void
     {
         $this->getJson('/api/admin/niuren/blog/posts/list')->assertStatus(401);
+    }
+
+    public function test_web_comment_stores_email_and_website(): void
+    {
+        $post = $this->createPost(['status' => Post::STATUS_PUBLISHED]);
+
+        $this->postJson('/blog/comments', [
+            'post_id'  => $post->id,
+            'nickname' => '测试访客',
+            'content'  => '带邮箱和网址的评论',
+            'email'    => 'visitor@example.com',
+            'website'  => 'https://example.com',
+        ])->assertOk()
+          ->assertJson(['code' => 0])
+          ->assertJsonPath('data.nickname', '测试访客');
+
+        $this->assertDatabaseHas('app_niuren_blog_post_comments', [
+            'post_id'  => $post->id,
+            'nickname' => '测试访客',
+            'email'    => 'visitor@example.com',
+            'website'  => 'https://example.com',
+        ]);
+    }
+
+    public function test_web_comment_requires_nickname(): void
+    {
+        $post = $this->createPost(['status' => Post::STATUS_PUBLISHED]);
+
+        $this->postJson('/blog/comments', [
+            'post_id' => $post->id,
+            'content' => '缺昵称的评论',
+        ])->assertUnprocessable()
+          ->assertJson(['code' => 40201])
+          ->assertJsonPath('data.nickname.0', '请填写昵称');
+    }
+
+    public function test_web_comment_rejects_invalid_email(): void
+    {
+        $post = $this->createPost(['status' => Post::STATUS_PUBLISHED]);
+
+        $this->postJson('/blog/comments', [
+            'post_id'  => $post->id,
+            'nickname' => '测试',
+            'content'  => '非法邮箱',
+            'email'    => 'not-an-email',
+        ])->assertUnprocessable()
+          ->assertJson(['code' => 40201])
+          ->assertJsonPath('data.email.0', '邮箱格式不正确');
+    }
+
+    public function test_web_like_stores_nickname(): void
+    {
+        $post = $this->createPost(['status' => Post::STATUS_PUBLISHED]);
+
+        $this->postJson('/blog/like', [
+            'post_id'  => $post->id,
+            'nickname' => '点赞访客',
+        ])->assertOk()
+          ->assertJson(['code' => 0])
+          ->assertJsonPath('data.liked', true)
+          ->assertJsonPath('data.count', 1);
+
+        $this->assertDatabaseHas('app_niuren_blog_post_likes', [
+            'post_id'  => $post->id,
+            'nickname' => '点赞访客',
+        ]);
+    }
+
+    public function test_web_publish_requires_password_when_configured(): void
+    {
+        // 配置发布密码
+        $this->seedConfig('publish_password', 'secret123');
+
+        $this->postJson('/blog/publish', [
+            'content' => '未验证密码的发布',
+        ])->assertUnprocessable()
+          ->assertJson(['code' => 40201])
+          ->assertJsonPath('data.password.0', '发布密码不正确');
+
+        // 携带正确密码可发布
+        $this->postJson('/blog/publish', [
+            'content'  => '验证密码后的发布',
+            'password' => 'secret123',
+        ])->assertOk()
+          ->assertJson(['code' => 0]);
+
+        $this->assertDatabaseHas('app_niuren_blog_posts', [
+            'content' => '验证密码后的发布',
+            'status'  => Post::STATUS_PUBLISHED,
+        ]);
+    }
+
+    public function test_web_verify_password_issues_cookie(): void
+    {
+        $this->seedConfig('publish_password', 'secret123');
+
+        $this->postJson('/blog/verify-password', [
+            'password' => 'secret123',
+        ])->assertOk()
+          ->assertJson(['code' => 0])
+          ->assertCookie('nr_blog_pwd', '1');
+    }
+
+    public function test_admin_setting_save_persists_profile(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->postJson('/api/admin/niuren/blog/setting/save', [
+                'app_niuren_blog_blog_name' => '我的博客',
+                'app_niuren_blog_blog_avatar' => '/uploads/niuren.blog/2026/08/24/avatar.png',
+                'app_niuren_blog_blog_bg' => '/uploads/niuren.blog/2026/08/24/bg.png',
+                'app_niuren_blog_publish_password' => 'pwd123',
+                'app_niuren_blog_posts_per_page' => 10,
+                'app_niuren_blog_access_mode' => 'root',
+            ])->assertOk()
+            ->assertJson(['code' => 0]);
+
+        $this->assertDatabaseHas('config_items', [
+            'code'  => 'app_niuren_blog_blog_name',
+            'value' => '我的博客',
+        ]);
+        $this->assertDatabaseHas('config_items', [
+            'code'  => 'app_niuren_blog_blog_avatar',
+            'value' => '/uploads/niuren.blog/2026/08/24/avatar.png',
+        ]);
+        $this->assertDatabaseHas('config_items', [
+            'code'  => 'app_niuren_blog_blog_bg',
+            'value' => '/uploads/niuren.blog/2026/08/24/bg.png',
+        ]);
+    }
+
+    /**
+     * 向博客设置组写入配置项（测试用）
+     */
+    protected function seedConfig(string $suffix, string $value): void
+    {
+        $groupId = DB::table('config_groups')
+            ->where('code', 'app_niuren_blog_blog_settings')
+            ->value('id');
+
+        if ($groupId === null) {
+            return;
+        }
+
+        DB::table('config_items')->updateOrInsert(
+            [
+                'group_id' => $groupId,
+                'code'     => 'app_niuren_blog_' . $suffix,
+            ],
+            [
+                'name'        => $suffix,
+                'value'       => $value,
+                'type'        => 'text',
+                'options'     => null,
+                'tips'        => '',
+                'sort'        => 0,
+                'status'      => 1,
+                'create_time' => now(),
+                'update_time' => now(),
+            ]
+        );
     }
 }

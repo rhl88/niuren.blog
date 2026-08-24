@@ -1,13 +1,14 @@
 /**
- * 朋友圈博客 前台交互脚本（v1.3.0）
+ * 朋友圈博客 前台交互脚本（v1.4.0）
  * 依赖：jQuery（页面已引入 layui 自带 jQuery）
  * 职责：
  *  1. 注入 X-Visitor-Id / X-CSRF-TOKEN 请求头（访客身份三级策略）
  *  2. 顶部导航滚动渐变 + 封面视差 + 深浅色主题切换
- *  3. 点赞（···浮层/卡片）乐观更新 + 回滚
- *  4. 评论区懒加载 + 底部评论输入条发送
- *  5. 九宫格长图标注 + 全屏图片浏览
- *  6. 写动态页：图片选择/上传/删除/发表
+ *  3. 点赞（···浮层/卡片）乐观更新 + 回滚，昵称随身份传递
+ *  4. 评论区懒加载 + 底部评论输入条发送（昵称必填，邮箱/网址选填，Cookie 自动记忆）
+ *  5. emoji 表情面板（复用 CmsproComment 五类 110 个表情）
+ *  6. 九宫格长图标注 + 全屏图片浏览
+ *  7. 写动态页：图片选择/上传/删除/发表 + 发布密码验证弹窗
  */
 (function (window) {
     'use strict';
@@ -17,6 +18,7 @@
         var VISITOR_KEY = 'nr_visitor_id';
         var COOKIE_NAME = 'nr_visitor';
         var THEME_KEY = 'nr_theme';
+        var COMMENT_META_COOKIE = 'nr_comment_meta';
 
         /* -------------------------------------------------------------------
          * 访客身份：localStorage 优先，其次 Cookie，最后由服务端下发补齐
@@ -67,6 +69,9 @@
             initScrollEffects();
             formatTimes();
             markLongImages();
+            initCommentMemory();
+            initEmoji();
+            initPasswordGate();
         });
 
         /* -------------------------------------------------------------------
@@ -142,6 +147,152 @@
                 var el = $(this).attr('data-time');
                 if (!el) { return; }
                 $(this).text(formatTime(el));
+            });
+        }
+
+        /* -------------------------------------------------------------------
+         * 评论元数据 Cookie 记忆：昵称/邮箱/网址 自动填充
+         * ------------------------------------------------------------------- */
+        function readCommentMeta() {
+            var meta = {};
+            try {
+                var raw = readCookie(COMMENT_META_COOKIE);
+                if (raw) { meta = JSON.parse(decodeURIComponent(raw)); }
+            } catch (e) { meta = {}; }
+            return meta || {};
+        }
+
+        function saveCommentMeta(meta) {
+            var value = encodeURIComponent(JSON.stringify(meta));
+            var expires = new Date(Date.now() + 365 * 24 * 3600 * 1000).toUTCString();
+            document.cookie = COMMENT_META_COOKIE + '=' + value + '; expires=' + expires + '; path=/';
+        }
+
+        function currentVisitorNickname() {
+            var meta = readCommentMeta();
+            return $.trim(meta.nickname || '') || '访客';
+        }
+
+        function initCommentMemory() {
+            if (!$('.mom-comment-meta').length) { return; }
+            var meta = readCommentMeta();
+            if (meta.nickname) { $('.mom-comment-nick').val(meta.nickname); }
+            if (meta.email) { $('.mom-comment-email').val(meta.email); }
+            if (meta.website) { $('.mom-comment-website').val(meta.website); }
+        }
+
+        /* -------------------------------------------------------------------
+         * emoji 表情面板（复用 CmsproComment 五类 110 个表情）
+         * ------------------------------------------------------------------- */
+        var EMOJI_CATEGORIES = [
+            { name: '常用', emojis: ['😀','😂','🤣','😊','😍','🥰','😘','😜','😝','🤗','🤔','😎','🥳','😏','😢','😭','😤','😡','🤯','😱','🤮','🥴','😴','🤤','😈','👿','💀','👻','👽','🤖'] },
+            { name: '手势', emojis: ['👍','👎','👌','✌️','🤞','🤟','🤘','🤙','👋','🤚','✋','🖖','👏','🙌','🤝','🙏','💪','🤛','🤜','🖕'] },
+            { name: '爱心', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️'] },
+            { name: '自然', emojis: ['☀️','🌙','⭐','🌟','💫','🔥','💧','🌊','🌈','🌸','🌺','🌻','🌹','🍀','🍁','🍂','🍃','🌵','🎄','🌲'] },
+            { name: '物品', emojis: ['🎉','🎊','🎁','🎈','🎀','🏆','🥇','🏅','🎯','🎮','🎲','🎵','🎶','🎸','🎹','🎺','🎻','🎬','📷','💻'] }
+        ];
+
+        function initEmoji() {
+            var $panel = $('.mom-comment-emoji-panel');
+            if (!$panel.length) { return; }
+            var activeIndex = 0;
+
+            function renderCategory(index) {
+                activeIndex = index;
+                var cat = EMOJI_CATEGORIES[index];
+                var html = '<div class="mom-emoji-tabs">';
+                for (var i = 0; i < EMOJI_CATEGORIES.length; i++) {
+                    html += '<span class="mom-emoji-tab' + (i === index ? ' active' : '') + '" data-idx="' + i + '">'
+                        + EMOJI_CATEGORIES[i].name + '</span>';
+                }
+                html += '</div><div class="mom-emoji-content">';
+                for (var j = 0; j < cat.emojis.length; j++) {
+                    html += '<span class="mom-emoji-item" data-emoji="' + cat.emojis[j] + '">' + cat.emojis[j] + '</span>';
+                }
+                html += '</div>';
+                $panel.html(html);
+            }
+
+            function togglePanel(btn) {
+                if ($panel.is('[hidden]')) {
+                    var $bar = $(btn).closest('.mom-comment-bar');
+                    var rect = $bar[0].getBoundingClientRect();
+                    var ph = $panel.outerHeight();
+                    var top = rect.top + window.scrollY - ph - 8;
+                    if (top < 8) { top = rect.bottom + window.scrollY + 8; }
+                    $panel.css({
+                        left: Math.max(8, (rect.left + window.scrollX)) + 'px',
+                        top: top + 'px'
+                    });
+                    $panel.removeAttr('hidden');
+                } else {
+                    $panel.attr('hidden', '');
+                }
+            }
+
+            renderCategory(0);
+
+            $(document).on('click', '.mom-comment-emoji', function (e) {
+                e.stopPropagation();
+                togglePanel(this);
+            });
+
+            $panel.on('click', '.mom-emoji-tab', function () {
+                renderCategory(parseInt($(this).attr('data-idx'), 10));
+            });
+
+            $panel.on('click', '.mom-emoji-item', function () {
+                var $input = $('.mom-comment-input');
+                var emoji = $(this).attr('data-emoji');
+                if ($input.length) {
+                    var el = $input[0];
+                    var start = el.selectionStart || 0;
+                    var value = el.value;
+                    el.value = value.substring(0, start) + emoji + value.substring(el.selectionEnd || 0);
+                    el.selectionStart = el.selectionEnd = start + emoji.length;
+                    $input.trigger('input');
+                    el.focus();
+                }
+                $panel.attr('hidden', '');
+            });
+
+            $(document).on('click', function (e) {
+                if (!$(e.target).closest('.mom-comment-emoji, .mom-comment-emoji-panel').length) {
+                    $panel.attr('hidden', '');
+                }
+            });
+        }
+
+        /* -------------------------------------------------------------------
+         * 发布密码验证弹窗（写动态页）
+         * ------------------------------------------------------------------- */
+        function initPasswordGate() {
+            if ($('body[data-page="writer"]').length === 0) { return; }
+            var $mask = $('.mom-pwd-mask');
+            if (!$mask.length) { return; }
+            if (!window.NR_PWD_REQUIRED) { return; }
+            $mask.removeAttr('hidden');
+            setTimeout(function () { $mask.find('.mom-pwd-input').focus(); }, 60);
+
+            $mask.on('click', '.mom-pwd-cancel', function () {
+                window.location.href = window.NR_LIST_URL || '/blog';
+            });
+
+            $mask.on('click', '.mom-pwd-confirm', function () {
+                var pwd = $.trim($mask.find('.mom-pwd-input').val() || '');
+                if (!pwd) { alert('请输入发布密码'); return; }
+                request(window.NR_VERIFY_URL, 'POST', { password: pwd })
+                    .done(function () {
+                        $mask.attr('hidden', '');
+                    })
+                    .fail(function (xhr) {
+                        alert((xhr.responseJSON && (xhr.responseJSON.msg || xhr.responseJSON.message)) || '密码验证失败');
+                        $mask.find('.mom-pwd-input').val('').focus();
+                    });
+            });
+
+            $mask.on('keydown', '.mom-pwd-input', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); $mask.find('.mom-pwd-confirm').trigger('click'); }
             });
         }
 
@@ -294,7 +445,7 @@
             var wasLiked = $card.find('.mom-like-row').hasClass('liked');
             if (!wasLiked) { setLiked(postId, true, (parseInt($card.find('.like-num').text(), 10) || 0) + 1); }
 
-            request('/blog/like', 'POST', { post_id: postId })
+            request('/blog/like', 'POST', { post_id: postId, nickname: currentVisitorNickname() })
                 .done(function (data) {
                     setLiked(postId, !!data.liked, typeof data.count !== 'undefined' ? data.count : null);
                 })
@@ -423,7 +574,17 @@
             var $bar = $('.mom-comment-bar');
             var content = $.trim($bar.find('.mom-comment-input').val() || '');
             if (!content) { return; }
-            var nickname = $.trim($bar.find('.mom-comment-nick').val() || '') || '访客';
+            var nickname = $.trim($bar.find('.mom-comment-nick').val() || '');
+            if (!nickname) { alert('请填写昵称'); return; }
+            var email = $.trim($bar.find('.mom-comment-email').val() || '');
+            var website = $.trim($bar.find('.mom-comment-website').val() || '');
+
+            // 记忆昵称/邮箱/网址，下次访问自动填充
+            var meta = readCommentMeta();
+            meta.nickname = nickname;
+            if (email) { meta.email = email; }
+            if (website) { meta.website = website; }
+            saveCommentMeta(meta);
 
             var $send = $bar.find('.mom-comment-send');
             $send.prop('disabled', true);
@@ -431,6 +592,8 @@
             request('/blog/comments', 'POST', {
                 post_id: $card.attr('data-post-id'),
                 nickname: nickname,
+                email: email,
+                website: website,
                 content: content
             }).done(function (item) {
                 var $list = $card.find('.mom-comment-list');

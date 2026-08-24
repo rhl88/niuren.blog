@@ -2,7 +2,7 @@
     "id": "niuren.blog",
     "name": "朋友圈博客",
     "description": "模仿朋友圈风格轻博客，支持前台发布动态与文章。",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "author": "CmsPro",
     "require": {
         "php": ">=8.1",
@@ -48,7 +48,11 @@
                     "tips": "博客对外提供访问的方式：根路径（/）、路径前缀（如 /blog）或子域名绑定（如 blog.example.com），三选一"
                 },
                 { "name": "access_path_prefix", "title": "路径前缀", "type": "text", "value": "/blog", "tips": "访问方式为「路径前缀」时生效，以 /{前缀} 形式访问博客（如 /blog）；留空表示不启用该方式" },
-                { "name": "access_domain", "title": "绑定子域名", "type": "text", "value": "", "tips": "访问方式为「子域名绑定」时生效，如 blog.example.com；留空表示不启用该方式" }
+                { "name": "access_domain", "title": "绑定子域名", "type": "text", "value": "", "tips": "访问方式为「子域名绑定」时生效，如 blog.example.com；留空表示不启用该方式" },
+                { "name": "blog_name", "title": "博客名称", "type": "text", "value": "朋友圈", "tips": "前台显示的博客名称 / 博主名称" },
+                { "name": "blog_avatar", "title": "博主头像", "type": "text", "value": "", "tips": "前台展示的博主头像（图片地址，可上传）" },
+                { "name": "blog_bg", "title": "背景图", "type": "text", "value": "", "tips": "前台顶部页头背景图（图片地址，可上传）" },
+                { "name": "publish_password", "title": "发布密码", "type": "text", "value": "", "tips": "前台发布动态所需密码，留空表示游客可直接发布" }
             ]
         }
     ],

@@ -14,7 +14,7 @@ class PostComment extends Model
     public const CREATED_AT = 'create_time';
     public const UPDATED_AT = null;
 
-    protected $fillable = ['post_id', 'nickname', 'content', 'visitor_id', 'email', 'website'];
+    protected $fillable = ['post_id', 'reply_to_id', 'nickname', 'content', 'visitor_id', 'email', 'website'];
 
     protected $casts = [
         'post_id' => 'integer',
@@ -29,5 +29,13 @@ class PostComment extends Model
         $name = trim((string) $this->nickname);
 
         return $name !== '' ? $name : '访客';
+    }
+
+    /**
+     * 回复目标评论（朋友圈式平铺：A 回复 B：内容）
+     */
+    public function replyTo()
+    {
+        return $this->belongsTo(self::class, 'reply_to_id');
     }
 }

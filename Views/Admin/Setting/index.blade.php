@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="{{ asset('Admin/css/reset.css') }}">
     <link rel="stylesheet" href="{{ asset('apps/niuren.blog/css/style.css') }}">
     <style>
+        .layui-form-label{width: 110px;}
+        .layui-input-block{margin-left: 136px;}
         .image-upload-wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .image-upload-wrap .preview-img {
             width: 96px; height: 96px; object-fit: cover;
@@ -48,6 +50,13 @@
                                             <input type="number" name="{{ $item->code }}" value="{{ $item->value }}"
                                                    min="1" max="100" step="1" lay-affix="number"
                                                    placeholder="请输入正整数" class="layui-input">
+                                        @elseif($item->type === 'select')
+                                            {{-- 显示模式：layui 渲染下拉框，中文选项（浅色/深色） --}}
+                                            <select name="{{ $item->code }}" lay-filter="themeMode">
+                                                @foreach(($item->options ?? []) as $opt)
+                                                    <option value="{{ $opt['value'] }}" {{ (string) $item->value === (string) $opt['value'] ? 'selected' : '' }}>{{ $opt['label'] }}</option>
+                                                @endforeach
+                                            </select>
                                         @elseif($item->type === 'switch')
                                             <input type="hidden" name="{{ $item->code }}" value="0">
                                             <input type="checkbox" name="{{ $item->code }}" lay-skin="switch"

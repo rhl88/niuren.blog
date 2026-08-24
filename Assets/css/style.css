@@ -192,8 +192,9 @@ button {
     position: relative;
     height: 240px;
     width: 100%;
-    overflow: hidden;
     background: var(--card-bg);
+    /* 允许下沉头像溢出（头像一半压在信息流上） */
+    overflow: visible;
 }
 
 .mom-cover-bg {
@@ -207,10 +208,11 @@ button {
 .mom-cover-user {
     position: absolute;
     right: 12px;
-    bottom: 16px;
+    bottom: -37px; /* 头像下沉：一半在封面背景外，压住信息流顶部 */
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start; /* 名字对齐头像顶部水平线 */
     gap: 8px;
+    z-index: 2;
 }
 
 .mom-cover-name {
@@ -218,6 +220,13 @@ button {
     font-size: 18px;
     font-weight: 600;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    /* 从右到左显示：贴住头像、超长向左截断省略，不被头像遮挡或溢出屏幕 */
+    max-width: calc(100vw - 130px);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-align: right;
+    line-height: 26px; /* 与头像顶部对齐的文字基线 */
 }
 
 .mom-cover-avatar {
@@ -233,6 +242,15 @@ button {
     justify-content: center;
     border: 2px solid rgba(255, 255, 255, 0.6);
     flex-shrink: 0;
+    overflow: hidden;
+}
+
+/* 上传头像图：锁定在容器内，防止原图尺寸溢出盖住左侧博客名称 */
+.mom-cover-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
 }
 
 /* =========================================================================
@@ -241,12 +259,12 @@ button {
 .mom-feed {
     max-width: 640px;
     margin: 0 auto;
-    padding: 12px 12px 40px;
+    padding: 48px 12px 40px; /* 顶部预留下沉头像的下半部分空间 */
 }
 
 /* 列表页封面遮挡导航，导航悬浮其上 */
 body[data-page="feed"] .mom-feed {
-    padding-top: 12px;
+    padding-top: 48px;
 }
 
 .mom-empty {
@@ -399,6 +417,23 @@ body[data-page="feed"] .mom-feed {
     gap: 10px;
 }
 
+/* 管理员删除入口：内容区（.mom-card-body）最右下角 */
+.mom-meta .mom-post-delete {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-2);
+    font-size: 12px;
+    line-height: 1;
+    padding: 4px 2px;
+    cursor: pointer;
+}
+
+.mom-meta .mom-post-delete:active {
+    color: var(--danger);
+    opacity: 0.7;
+}
+
 .mom-time {
     font-size: 12px;
     color: var(--text-2);
@@ -426,6 +461,7 @@ body[data-page="feed"] .mom-feed {
 .mom-like-icon {
     color: var(--text-2);
     font-size: 15px;
+    cursor: pointer; /* 可点击点赞 */
 }
 
 .mom-like-row.liked .mom-like-icon {
@@ -482,6 +518,90 @@ body[data-page="feed"] .mom-feed {
     color: var(--text-2);
     font-size: 13px;
     padding: 4px 0;
+}
+
+/* 展开/收起更多评论按钮 */
+.comments-toggle {
+    background: none;
+    border: none;
+    padding: 4px 0;
+    color: var(--brand, #576b95);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.comments-toggle:active {
+    opacity: 0.6;
+}
+
+/* 评论昵称链接：评论时填写了网址/邮箱则可点击 */
+.comment-nick-link {
+    color: var(--brand, #576b95);
+    text-decoration: none;
+}
+
+.comment-nick-link:active {
+    opacity: 0.6;
+}
+
+/* 评论内容默认两行截断，超出可展开；行内盒保证「昵称：内容」同一行起排 */
+.comment-text.clamp {
+    display: -webkit-inline-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    vertical-align: bottom;
+}
+
+.comment-expand {
+    background: none;
+    border: none;
+    padding: 2px 0;
+    color: var(--brand, #576b95);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.comment-expand:active {
+    opacity: 0.6;
+}
+
+/* 朋友圈式回复展示：A 回复 B：内容 */
+.comment-reply-arrow {
+    color: var(--text-2);
+}
+
+/* 被回复昵称：与 .mom-name 同色（朋友圈式） */
+.comment-reply-target {
+    color: var(--link);
+    font-weight: 500;
+}
+
+/* 博主昵称高亮：与 .mom-name 同色（朋友圈博主标识） */
+.comment-nick-owner {
+    color: var(--link);
+    font-weight: 500;
+}
+
+/* 点击评论内容发起回复的可点击提示 */
+.comment-item {
+    cursor: pointer;
+}
+
+/* 动态流滚动加载状态提示 */
+.mom-feed-loading,
+.mom-feed-end {
+    display: block;
+    text-align: center;
+    color: var(--text-2);
+    font-size: 13px;
+    padding: 12px 0;
+}
+
+/* display:block 覆盖 [hidden] 默认隐藏，需显式声明 */
+.mom-feed-loading[hidden],
+.mom-feed-end[hidden] {
+    display: none;
 }
 
 /* =========================================================================
@@ -594,6 +714,29 @@ body[data-page="feed"] .mom-feed {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    position: relative;
+}
+
+/* 评论层右上角关闭按钮 */
+.mom-comment-close {
+    position: absolute;
+    top: -34px;
+    right: 4px;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: var(--card-bg);
+    color: var(--text-2);
+    font-size: 14px;
+    line-height: 28px;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.mom-comment-close:hover {
+    color: var(--text-1);
 }
 
 .mom-comment-input-row {
@@ -624,7 +767,7 @@ body[data-page="feed"] .mom-feed {
     background: var(--input-bg);
     color: var(--text-1);
     font-size: 14px;
-    padding: 0 14px;
+    padding: 7px 14px;
     outline: none;
     resize: none;
 }
@@ -749,6 +892,11 @@ body[data-page="feed"] .mom-feed {
     align-items: center;
     justify-content: center;
     padding: 20px;
+}
+
+/* display:flex 会覆盖 [hidden] 默认隐藏，需显式声明（同 .mom-pop/.mom-viewer 模式） */
+.mom-pwd-mask[hidden] {
+    display: none;
 }
 
 .mom-pwd-box {
@@ -982,4 +1130,90 @@ body[data-page="feed"] .mom-feed {
     text-align: center;
     color: var(--text-2);
     font-size: 13px;
+}
+
+/* =========================================================================
+   微信风格 ActionSheet（删除动态确认，1:1 复刻微信 iOS）
+   半透明黑遮罩 + 底部弹出白色圆角操作菜单（红色删除 + 取消）
+   ========================================================================= */
+.wx-sheet-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.wx-sheet-mask.show {
+    opacity: 1;
+}
+
+.wx-sheet {
+    display: flex;
+    flex-direction: column;
+    padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(100%);
+    transition: transform 0.25s ease-out;
+}
+
+.wx-sheet-mask.show .wx-sheet {
+    transform: translateY(0);
+}
+
+.wx-sheet-btn {
+    height: 56px;
+    border: 0;
+    border-radius: 12px;
+    background: #ffffff;
+    font-size: 17px;
+    line-height: 56px;
+    padding: 0;
+    cursor: pointer;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.wx-sheet-btn:active {
+    background: #ececec;
+}
+
+.wx-sheet-danger {
+    color: #fa5151;
+}
+
+.wx-sheet-cancel {
+    margin-top: 8px;
+    color: #000000;
+}
+
+/* 深色模式：微信深色 ActionSheet（深灰面板 + 白色文字） */
+[data-theme="dark"] .wx-sheet-btn {
+    background: #2c2c2e;
+}
+
+[data-theme="dark"] .wx-sheet-btn:active {
+    background: #3a3a3c;
+}
+
+[data-theme="dark"] .wx-sheet-cancel {
+    color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .wx-sheet-btn {
+        background: #2c2c2e;
+    }
+
+    :root:not([data-theme]) .wx-sheet-btn:active {
+        background: #3a3a3c;
+    }
+
+    :root:not([data-theme]) .wx-sheet-cancel {
+        color: #ffffff;
+    }
 }

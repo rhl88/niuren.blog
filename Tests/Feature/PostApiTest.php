@@ -6,6 +6,7 @@ use App\Apps\NiurenBlog\Models\Post;
 use App\Models\AdminUser;
 use Database\Seeders\AdminRoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -57,6 +58,7 @@ class PostApiTest extends TestCase
         $this->ensureBlogConfigGroup();
 
         (require base_path('app/Apps/NiurenBlog/Migrations/2026_03_01_000001_add_blog_profile_and_comment_meta.php'))->up();
+        (require base_path('app/Apps/NiurenBlog/Migrations/2026_03_02_000001_add_reply_to_id_to_post_comments.php'))->up();
     }
 
     /**
@@ -193,6 +195,42 @@ class PostApiTest extends TestCase
         $this->assertDatabaseMissing('app_niuren_blog_posts', ['id' => $post->id]);
     }
 
+    public function test_web_delete_post_by_admin(): void
+    {
+        $post = $this->createPost();
+
+        // 后台登录管理员通过前台删除入口删除动态（回归：返回数组而非 JsonResponse 类型错误）
+        $this->actingAs($this->admin, 'admin')
+            ->deleteJson('/blog/posts/' . $post->id)
+            ->assertOk()
+            ->assertJson(['code' => 0])
+            ->assertJsonPath('message', '已删除');
+
+        $this->assertDatabaseMissing('app_niuren_blog_posts', ['id' => $post->id]);
+    }
+
+    public function test_web_delete_post_rejects_visitor(): void
+    {
+        $post = $this->createPost();
+
+        // 未登录访客删除：40301 拒绝，动态保留
+        $this->deleteJson('/blog/posts/' . $post->id)
+            ->assertOk()
+            ->assertJson(['code' => 40301])
+            ->assertJsonPath('message', '仅管理员可删除动态');
+
+        $this->assertDatabaseHas('app_niuren_blog_posts', ['id' => $post->id]);
+    }
+
+    public function test_web_delete_missing_post_returns_40401(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->deleteJson('/blog/posts/99999')
+            ->assertOk()
+            ->assertJson(['code' => 40401])
+            ->assertJsonPath('message', '动态不存在');
+    }
+
     public function test_web_publish_creates_published_post(): void
     {
         $this->postJson('/blog/publish', [
@@ -217,6 +255,30 @@ class PostApiTest extends TestCase
         $response->assertOk()
             ->assertSee('已发布')
             ->assertDontSee('草稿');
+    }
+
+    public function test_web_index_ajax_returns_paged_json(): void
+    {
+        for ($i = 1; $i <= 3; $i++) {
+            $this->createPost(['title' => "ajax 动态{$i}", 'status' => Post::STATUS_PUBLISHED]);
+        }
+        $this->createPost(['title' => 'ajax 草稿', 'status' => Post::STATUS_DRAFT]);
+
+        // AJAX 请求（X-Requested-With）返回 JSON 分页：仅已发布、含分页状态字段
+        $this->get('/blog', ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->assertJsonPath('code', 0)
+            ->assertJsonPath('data.page', 1)
+            ->assertJsonPath('data.has_more', false)
+            ->assertJsonPath('data.total', 3)
+            ->assertJsonCount(3, 'data.items')
+            ->assertJsonMissing(['title' => 'ajax 草稿']);
+
+        // 超出范围的页码返回空列表而非错误
+        $this->get('/blog?page=2', ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->assertJsonPath('code', 0)
+            ->assertJsonCount(0, 'data.items');
     }
 
     public function test_web_show_returns_404_page_for_draft(): void
@@ -301,6 +363,56 @@ class PostApiTest extends TestCase
           ->assertJsonPath('data.email.0', '邮箱格式不正确');
     }
 
+    public function test_web_comment_reply_to_comment(): void
+    {
+        $post = $this->createPost(['status' => Post::STATUS_PUBLISHED]);
+
+        // 原评论
+        $origin = $this->postJson('/blog/comments', [
+            'post_id'  => $post->id,
+            'nickname' => '张三',
+            'content'  => '原评论',
+        ])->assertOk()->json('data');
+
+        // 回复该评论：入库带 reply_to_id，响应带回复目标昵称
+        $this->postJson('/blog/comments', [
+            'post_id'     => $post->id,
+            'nickname'    => '李四',
+            'content'     => '回复内容',
+            'reply_to_id' => $origin['id'],
+        ])->assertOk()
+          ->assertJson(['code' => 0])
+          ->assertJsonPath('data.reply_to_id', $origin['id'])
+          ->assertJsonPath('data.reply_to_nickname', '张三');
+
+        // 列表接口返回回复关系
+        $this->getJson('/blog/comments?post_id=' . $post->id)
+            ->assertOk()
+            ->assertJsonPath('data.items.0.reply_to_nickname', '张三');
+
+        // 回复目标不属于当前文章：降级为普通评论（reply_to_id 不入库）
+        $other = $this->createPost(['status' => Post::STATUS_PUBLISHED]);
+        $foreign = $this->postJson('/blog/comments', [
+            'post_id'  => $other->id,
+            'nickname' => '王五',
+            'content'  => '另一篇文章的评论',
+        ])->assertOk()->json('data');
+
+        $this->postJson('/blog/comments', [
+            'post_id'     => $post->id,
+            'nickname'    => '赵六',
+            'content'     => '跨文章回复',
+            'reply_to_id' => $foreign['id'],
+        ])->assertOk()
+          ->assertJsonPath('data.reply_to_id', 0);
+
+        $this->assertDatabaseHas('app_niuren_blog_post_comments', [
+            'post_id'     => $post->id,
+            'nickname'    => '赵六',
+            'reply_to_id' => null,
+        ]);
+    }
+
     public function test_web_like_stores_nickname(): void
     {
         $post = $this->createPost(['status' => Post::STATUS_PUBLISHED]);
@@ -354,6 +466,36 @@ class PostApiTest extends TestCase
           ->assertCookie('nr_blog_pwd', '1');
     }
 
+    public function test_web_write_page_blocked_without_verification(): void
+    {
+        $this->seedConfig('publish_password', 'secret123');
+
+        // 未验证访客访问写动态页：渲染密码门页面，不包含发布表单与上传接口
+        $this->get('/blog/write')
+            ->assertOk()
+            ->assertSee('需要发布密码')
+            ->assertDontSee('NR_UPLOAD_URL');
+
+        // 验证后（携带验证 Cookie）可进入发布表单
+        $this->postJson('/blog/verify-password', ['password' => 'secret123']);
+        $this->withCookie('nr_blog_pwd', '1')
+            ->get('/blog/write')
+            ->assertOk()
+            ->assertSee('NR_UPLOAD_URL');
+    }
+
+    public function test_web_upload_blocked_without_verification(): void
+    {
+        $this->seedConfig('publish_password', 'secret123');
+
+        // 未验证访客直接调上传接口：40301 拒绝（防审查元素移除前端遮罩绕过）
+        $file = UploadedFile::fake()->image('hack.jpg', 10, 10);
+        $this->postJson('/blog/upload', ['image' => $file])
+            ->assertOk()
+            ->assertJson(['code' => 40301])
+            ->assertJsonPath('message', '请先输入发布密码');
+    }
+
     public function test_admin_setting_save_persists_profile(): void
     {
         $this->actingAs($this->admin, 'admin')
@@ -363,6 +505,7 @@ class PostApiTest extends TestCase
                 'app_niuren_blog_blog_bg' => '/uploads/niuren.blog/2026/08/24/bg.png',
                 'app_niuren_blog_publish_password' => 'pwd123',
                 'app_niuren_blog_posts_per_page' => 10,
+                'app_niuren_blog_theme_mode' => 'dark',
                 'app_niuren_blog_access_mode' => 'root',
             ])->assertOk()
             ->assertJson(['code' => 0]);

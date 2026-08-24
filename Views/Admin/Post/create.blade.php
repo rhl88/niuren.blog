@@ -194,17 +194,19 @@ layui.use(['form', 'jquery'], function(){
         var loadIndex = layer.load(1);
 
         var url = '{{ isset($post) ? url('api/admin/niuren/blog/posts/'.$post->id) : url('api/admin/niuren/blog/posts/save') }}';
-        var type = '{{ isset($post) ? 'PUT' : 'POST' }}';
+        // PHP 不解析 PUT 请求的 multipart 表单体，编辑时用 POST + _method=PUT 伪装
+        var isEdit = {{ isset($post) ? 'true' : 'false' }};
 
         // FormData 整体提交：未追加任何 images[] 即代表清空全部图片
         var fd = new FormData();
+        if (isEdit) { fd.append('_method', 'PUT'); }
         fd.append('content', data.field.content || '');
         fd.append('status', data.field.status || '1');
         images.forEach(function(url){ fd.append('images[]', url); });
 
         $.ajax({
             url: url,
-            type: type,
+            type: 'POST',
             data: fd,
             processData: false,
             contentType: false,

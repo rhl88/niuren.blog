@@ -31,7 +31,17 @@ class SettingController
      * @var array<string, array{name: string, value: string, type: string, tips: string, options?: array<int, array{label: string, value: string}>}>
      */
     public const DEFAULTS = [
-        'posts_per_page'     => ['name' => '每页文章数',   'value' => '10',   'type' => 'number', 'tips' => '前台列表每页文章数量'],
+        'posts_per_page'     => ['name' => '默认显示数',   'value' => '10',   'type' => 'number', 'tips' => '前台评论、日志默认展示数量'],
+        'theme_mode'         => [
+            'name'    => '显示模式',
+            'value'   => 'light',
+            'type'    => 'select',
+            'tips'    => '前台默认显示模式，访客仍可自行切换并记忆',
+            'options' => [
+                ['label' => '浅色', 'value' => 'light'],
+                ['label' => '深色', 'value' => 'dark'],
+            ],
+        ],
         'access_mode'        => [
             'name'    => '访问方式',
             'value'   => 'root',

@@ -31,7 +31,8 @@ class SettingApiController
      * 取值为代码内固定映射而非用户输入，不引入注入风险；与迁移文件中的定义保持一致。
      */
     protected array $meta = [
-        'posts_per_page'     => ['name' => '每页文章数', 'type' => 'number'],
+        'posts_per_page'     => ['name' => '默认显示数', 'type' => 'number'],
+        'theme_mode'         => ['name' => '显示模式', 'type' => 'select'],
         'access_mode'        => ['name' => '访问方式', 'type' => 'select'],
         'access_path_prefix' => ['name' => '路径前缀', 'type' => 'text'],
         'access_domain'      => ['name' => '绑定子域名', 'type' => 'text'],
@@ -46,6 +47,7 @@ class SettingApiController
      */
     protected array $rules = [
         'posts_per_page'     => 'required|integer|min:1|max:100',
+        'theme_mode'         => 'required|in:light,dark',
         'access_mode'        => 'required|in:root,path,domain',
         'access_path_prefix' => ['nullable', 'string', 'max:100', 'regex:/^\/[A-Za-z0-9_\-\/]*$/'],
         'access_domain'      => ['nullable', 'string', 'max:255', 'regex:/^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))+$/'],

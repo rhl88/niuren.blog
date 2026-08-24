@@ -2,6 +2,7 @@
 
 namespace App\Apps\NiurenBlog\Controllers\Web;
 
+use App\Apps\NiurenBlog\Controllers\Web\BlogController;
 use App\Services\AttachmentService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -14,7 +15,8 @@ use Illuminate\Routing\Controller;
  * （扩展名校验、大小限制、哈希去重、文件存储、Attachment 记录），
  * 并传入应用 ID 使文件落盘到 public/uploads/niuren.blog/{Y/m/d}/ 应用隔离目录。
  *
- * 前台游客可发布纯图帖，故此端点为公开访问（与论坛 home-api 先例对齐）；
+ * 权限：与发布同口径——后台登录、或已通过发布密码验证、或未配置密码方可上传；
+ * 防止未验证访客通过审查元素移除前端遮罩后直接调用本端点。
  * 单文件上传、逐张调用，前端负责九张上限拦截。
  */
 class UploadApiController extends Controller
@@ -27,6 +29,15 @@ class UploadApiController extends Controller
      */
     public function uploadImage(Request $request)
     {
+        // 发布权限校验（与写动态页/发布接口同一口径）
+        if (! app(BlogController::class)->canPublish($request)) {
+            return response()->json([
+                'code'    => 40301,
+                'message' => '请先输入发布密码',
+                'data'    => null,
+            ]);
+        }
+
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,gif,webp|mimetypes:image/jpeg,image/png,image/gif,image/webp|max:5120',
         ], [

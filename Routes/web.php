@@ -16,6 +16,9 @@ Route::post('/upload', [UploadApiController::class, 'uploadImage'])->name('niure
 Route::post('/like', [LikeApiController::class, 'toggle'])->name('niuren.blog.like.toggle');
 Route::get('/comments', [CommentApiController::class, 'index'])->name('niuren.blog.comments.index');
 Route::post('/comments', [CommentApiController::class, 'store'])->name('niuren.blog.comments.store');
+Route::delete('/posts/{id}', [BlogController::class, 'destroy'])
+    ->whereNumber('id')
+    ->name('niuren.blog.posts.destroy');
 Route::get('/{id}', [BlogController::class, 'show'])
     ->whereNumber('id')
     ->name('niuren.blog.show');

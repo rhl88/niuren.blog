@@ -1,5 +1,5 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+﻿<!DOCTYPE html>
+<html lang="zh-CN"@if(($blog['theme_mode'] ?? 'light') === 'dark') data-theme="dark"@endif>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,7 +8,7 @@
     <title>{{ ($blog['name'] ?? '') . ($post->title ? ' - ' . $post->title : ' - 动态详情') }}</title>
     <link rel="stylesheet" href="{{ asset('CmsProUi/component/pear/css/pear.css') }}">
     <link rel="stylesheet" href="{{ asset('CmsProUi/font-awesome/4.7.0/css/font-awesome.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('apps/niuren.blog/css/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('apps/niuren.blog/css/style.css') }}?v=1.4.21">
 </head>
 <body data-page="detail">
 
@@ -65,10 +65,9 @@
         <!-- 点赞 + 评论区（灰底气泡） -->
         <div class="mom-praise">
             <div class="mom-like-row{{ in_array($post->id, $likedIds ?? []) ? ' liked' : '' }}">
-                <i class="mom-like-icon fa fa-thumbs-o-up"></i>
-                <span class="mom-like-nick">@if(!empty($likersMap[$post->id] ?? [])){{ implode('、', $likersMap[$post->id]) }}觉得很赞@endif</span>
-                @if((int)($post->likes_count ?? 0) > 0)
-                    <span class="mom-like-count">(<span class="like-num">{{ (int)($post->likes_count ?? 0) }}</span>)</span>
+                <i class="mom-like-icon fa fa-heart-o"></i>
+                @if(!empty($likersMap[$post->id] ?? []))
+                    <span class="mom-like-nick">{{ implode('、', $likersMap[$post->id]) }}</span>
                 @endif
             </div>
             <div class="mom-comment-list" data-post-id="{{ $post->id }}"></div>
@@ -89,7 +88,7 @@
         <!-- 赞 / 评论 操作浮层 -->
         <div class="mom-pop" hidden>
             <a href="javascript:;" class="mom-pop-item mom-pop-like">
-                <i class="fa fa-thumbs-up"></i> 赞
+                <i class="fa fa-heart"></i> 赞
             </a>
             <a href="javascript:;" class="mom-pop-item mom-pop-comment">
                 <i class="fa fa-comment-o"></i> 评论
@@ -106,6 +105,7 @@
 <!-- 底部评论输入条 -->
 <div class="mom-comment-bar" hidden>
     <div class="mom-comment-bar-inner">
+        <button type="button" class="mom-comment-close" title="收起评论"><i class="fa fa-close"></i></button>
         <div class="mom-comment-input-row">
             <textarea class="mom-comment-input" maxlength="500" placeholder="评论" rows="2"></textarea>
             <button type="button" class="mom-comment-emoji" title="表情"><i class="fa fa-smile-o"></i></button>
@@ -130,7 +130,11 @@
     <button type="button" class="mom-viewer-next"><i class="fa fa-chevron-right"></i></button>
 </div>
 
+<script>
+    // 博主昵称（已验证发布密码或后台登录时为博客名称）：评论框昵称自动填充
+    window.NR_OWNER_NICKNAME = @json($ownerNickname);
+</script>
 <script src="{{ asset('CmsProUi/component/layui/layui.js') }}"></script>
-<script src="{{ asset('apps/niuren.blog/js/app.js') }}"></script>
+<script src="{{ asset('apps/niuren.blog/js/app.js') }}?v=1.4.21"></script>
 </body>
 </html>

@@ -3,12 +3,14 @@
 namespace App\Apps\NiurenBlog\Controllers\Web;
 
 use App\Apps\NiurenBlog\Models\Post;
+use App\Apps\NiurenBlog\Models\PostComment;
 use App\Apps\NiurenBlog\Models\PostLike;
 use App\Apps\NiurenBlog\Services\PostService;
 use App\Apps\NiurenBlog\Services\VisitorId;
 use App\Http\Responses\ApiResponse;
 use App\Models\ConfigItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -20,6 +22,9 @@ class BlogController
 
     /**
      * 前台文章列表（仅已发布）
+     *
+     * 普通请求渲染首屏视图；AJAX 请求（X-Requested-With / Accept JSON）返回
+     * JSON 分页数据，供前端滚动到底自动加载下一页。
      */
     public function index(Request $request)
     {
@@ -30,17 +35,85 @@ class BlogController
         $items = $paginator->items();
         $postIds = collect($items)->pluck('id')->all();
 
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'code'    => 0,
+                'message' => 'success',
+                'data'    => [
+                    'items'    => $this->feedItems($items, $request),
+                    'has_more' => $paginator->hasMorePages(),
+                    'page'     => $paginator->currentPage(),
+                    'total'    => $paginator->total(),
+                ],
+            ]);
+        }
+
         return view('niuren.blog::Web.index', [
             'list' => $items,
             'total' => $paginator->total(),
             'page' => $paginator->currentPage(),
             'pageSize' => $paginator->perPage(),
+            'hasMore' => $paginator->hasMorePages(),
             'blog' => $this->webSettings(),
             // 首屏直接标红当前访客已赞文章，避免前端二次请求造成状态闪烁
             'likedIds' => $this->likedPostIds($postIds, $request),
             // 每篇文章的点赞昵称列表（首屏渲染）
             'likersMap' => $this->likersByPost($postIds),
+            // 博主昵称（已验证发布密码或后台登录时为博客名称，评论框自动填充）
+            'ownerNickname' => $this->ownerNickname($request),
+            // 后台登录时前台显示删除入口
+            'isAdmin' => Auth::guard('admin')->check(),
         ]);
+    }
+
+    /**
+     * 动态流 JSON 数据项（AJAX 分页追加渲染用）
+     *
+     * @param array $posts 文章模型列表
+     * @return array<int, array<string, mixed>>
+     */
+    protected function feedItems(array $posts, Request $request): array
+    {
+        $postIds = collect($posts)->pluck('id')->all();
+        $likedIds = $this->likedPostIds($postIds, $request);
+        $likersMap = $this->likersByPost($postIds);
+
+        return array_map(fn (Post $post) => [
+            'id'             => $post->id,
+            'title'          => (string) $post->title,
+            'content'        => (string) $post->content,
+            'images'         => $post->images ?? [],
+            'create_time'    => (string) $post->create_time,
+            'likes_count'    => (int) ($post->likes_count ?? 0),
+            'comments_count' => (int) ($post->comments_count ?? 0),
+            'liked'          => in_array($post->id, $likedIds, true),
+            'likers'         => array_values($likersMap[$post->id] ?? []),
+            // 后台登录时 AJAX 追加卡片也显示删除入口
+            'is_admin'       => Auth::guard('admin')->check(),
+        ], array_values($posts));
+    }
+
+    /**
+     * 删除动态（仅后台登录管理员，前台删除入口）
+     *
+     * 关联的点赞、评论一并删除，保持数据一致。
+     */
+    public function destroy(Request $request, int $id): array
+    {
+        if (! Auth::guard('admin')->check()) {
+            return ApiResponse::error(40301, '仅管理员可删除动态');
+        }
+
+        $post = Post::find($id);
+        if ($post === null) {
+            return ApiResponse::error(40401, '动态不存在');
+        }
+
+        PostLike::where('post_id', $post->id)->delete();
+        PostComment::where('post_id', $post->id)->delete();
+        $post->delete();
+
+        return ApiResponse::success(null, '已删除');
     }
 
     /**
@@ -56,14 +129,40 @@ class BlogController
             'blog' => $this->webSettings(),
             'likedIds' => $this->likedPostIds([$post->id], $request),
             'likersMap' => $this->likersByPost([$post->id]),
+            // 博主昵称（已验证发布密码或后台登录时为博客名称，评论框自动填充）
+            'ownerNickname' => $this->ownerNickname($request),
         ]);
     }
 
     /**
+     * 博主昵称：已验证发布密码或后台登录的访客返回博客名称，普通访客返回 null
+     *
+     * 用于前端评论框昵称自动填充（博客名称来自后台「博客设置」）。
+     */
+    protected function ownerNickname(Request $request): ?string
+    {
+        if ($this->isVerified($request) || Auth::guard('admin')->check()) {
+            return $this->webSettings()['name'];
+        }
+
+        return null;
+    }
+
+    /**
      * 写文章页
+     *
+     * 权限前置：未通过发布密码验证且未后台登录的访客，渲染独立密码门页面
+     * （不含发布表单与上传逻辑），验证成功后方可进入发布表单；
+     * 防止审查元素移除前端遮罩后绕过密码。
      */
     public function create()
     {
+        if (! $this->canPublish(request())) {
+            return view('niuren.blog::Web.gate', [
+                'blog' => $this->webSettings(),
+            ]);
+        }
+
         return view('niuren.blog::Web.create', [
             'blog' => $this->webSettings(),
         ]);
@@ -111,6 +210,21 @@ class BlogController
                 'password' => '发布密码不正确',
             ]);
         }
+    }
+
+    /**
+     * 当前访客是否具备发布资格（无密码直接进入表单的判定口径）
+     *
+     * 已后台登录、或已通过发布密码验证、或后台未配置发布密码 → true。
+     * 写动态页渲染与图片上传共用此口径，防止审查元素移除前端遮罩绕过密码。
+     */
+    public function canPublish(Request $request): bool
+    {
+        if ($this->configValue('publish_password') === '') {
+            return true;
+        }
+
+        return $this->isVerified($request) || Auth::guard('admin')->check();
     }
 
     /**
@@ -197,6 +311,8 @@ class BlogController
             'avatar' => $this->configValue('blog_avatar'),
             'bg' => $this->configValue('blog_bg'),
             'publish_password' => $this->configValue('publish_password'),
+            // 前台默认显示模式（light 浅色 / dark 深色），访客本地选择优先
+            'theme_mode' => $this->configValue('theme_mode') === 'dark' ? 'dark' : 'light',
         ];
     }
 

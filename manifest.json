@@ -2,7 +2,7 @@
     "id": "niuren.blog",
     "name": "朋友圈博客",
     "description": "模仿朋友圈风格轻博客，支持前台发布动态与文章。",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "author": "CmsPro",
     "require": {
         "php": ">=8.1",
@@ -34,7 +34,18 @@
             "name": "blog_settings",
             "title": "博客设置",
             "items": [
-                { "name": "posts_per_page", "title": "每页文章数", "type": "number", "value": "10", "tips": "前台列表每页文章数量" },
+                { "name": "posts_per_page", "title": "默认显示数", "type": "number", "value": "10", "tips": "前台评论、日志默认展示数量" },
+                {
+                    "name": "theme_mode",
+                    "title": "显示模式",
+                    "type": "select",
+                    "value": "light",
+                    "options": [
+                        { "label": "浅色", "value": "light" },
+                        { "label": "深色", "value": "dark" }
+                    ],
+                    "tips": "前台默认显示模式，访客仍可自行切换并记忆"
+                },
                 {
                     "name": "access_mode",
                     "title": "访问方式",

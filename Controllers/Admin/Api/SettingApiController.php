@@ -3,8 +3,10 @@
 namespace App\Apps\NiurenBlog\Controllers\Admin\Api;
 
 use App\Apps\NiurenBlog\Controllers\Admin\SettingController;
-use App\Models\ConfigItem;
+use App\Enums\AppStatus;
 use App\Http\Responses\ApiResponse;
+use App\Models\AppModel;
+use App\Models\ConfigItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -58,6 +60,38 @@ class SettingApiController
     ];
 
     /**
+     * 访问设置冲突预检（保存前实时检测）
+     *
+     * 依据提交的 access_mode / access_path_prefix 运行与 save 相同的占用检测，
+     * 供设置页在切换访问方式或修改前缀时即时展示冲突提示，不落库。
+     */
+    public function check(Request $request): array
+    {
+        $this->requirePermission('niuren.blog.manage');
+
+        $mode = (string) $request->input('access_mode', '');
+        if (! in_array($mode, self::ACCESS_MODES, true)) {
+            return ApiResponse::error(40001, '访问方式参数不合法');
+        }
+
+        $prefix = trim((string) $request->input('access_path_prefix', ''), '/');
+
+        if ($mode === 'root') {
+            $conflict = $this->findRootPathConflict();
+        } elseif ($mode === 'path' && $prefix !== '') {
+            $conflict = $this->findPathPrefixConflict('/' . $prefix);
+        } else {
+            $conflict = null;
+        }
+
+        if ($conflict !== null) {
+            return ApiResponse::error(40002, $conflict['message'], ['conflicts' => $conflict['paths']]);
+        }
+
+        return ApiResponse::success(['ok' => true], '当前访问配置无冲突');
+    }
+
+    /**
      * 保存博客设置
      */
     public function save(Request $request): array
@@ -98,6 +132,24 @@ class SettingApiController
             ]);
         }
 
+        // 根路径模式占用检测：已有其他启用应用占用根路径路由时拒绝保存
+        if ($validated['access_mode'] === 'root') {
+            $conflict = $this->findRootPathConflict();
+            if ($conflict !== null) {
+                return ApiResponse::error(40002, $conflict['message'], ['conflicts' => $conflict['paths']]);
+            }
+        }
+
+        // 路径前缀模式占用检测：前缀与系统保留路径或其他启用应用的路由/前缀冲突时拒绝保存
+        if ($validated['access_mode'] === 'path'
+            && isset($validated['access_path_prefix'])
+            && $validated['access_path_prefix'] !== '') {
+            $conflict = $this->findPathPrefixConflict($validated['access_path_prefix']);
+            if ($conflict !== null) {
+                return ApiResponse::error(40002, $conflict['message'], ['conflicts' => $conflict['paths']]);
+            }
+        }
+
         $groupId = DB::table('config_groups')
             ->where('code', SettingController::GROUP_CODE)
             ->value('id');
@@ -136,6 +188,169 @@ class SettingApiController
         }
 
         return ApiResponse::success(null, '保存成功');
+    }
+
+    /**
+     * 根路径模式占用检测
+     *
+     * root 模式下本应用会在站点根路径 / 注册前台路由（清单与 Routes/web.php 一致），
+     * 若已有其他「已启用」应用通过无前缀路由占用相同根路径，将产生路由覆盖冲突
+     * （安装时 manifest home_routes 检测无法拦截，因声明路径与 root 实际路径不一致）。
+     *
+     * @return array{message: string, paths: array<int, array<string, string>>}|null
+     *         无冲突返回 null；有冲突返回提示信息与冲突路径明细
+     */
+    protected function findRootPathConflict(): ?array
+    {
+        // 本应用 root 模式下会注册的前台路由（与 Routes/web.php 保持一致）
+        $myRoutes = [
+            '/'                => '朋友圈动态流',
+            '/write'           => '写动态',
+            '/publish'         => '发布动态',
+            '/verify-password' => '发布密码验证',
+            '/upload'          => '图片上传',
+            '/like'            => '点赞',
+            '/comments'        => '评论',
+            '/posts/{id}'      => '删除动态',
+            '/{id}'            => '动态详情',
+        ];
+
+        $conflicts = [];
+        foreach ($this->enabledApps() as $app) {
+            $otherRoutes = ($app->manifest ?? [])['home_routes'] ?? [];
+            foreach ($myRoutes as $path => $title) {
+                if (isset($otherRoutes[$path])) {
+                    $conflicts[] = [
+                        'path'  => $path,
+                        'app'   => $app->name ?: $app->app_id,
+                        'title' => (string) $otherRoutes[$path],
+                    ];
+                }
+            }
+        }
+
+        return $this->buildConflictResult($conflicts, '根路径模式与已启用应用冲突，无法保存');
+    }
+
+    /**
+     * 路径前缀模式占用检测
+     *
+     * 检测三个维度：
+     * 1. 前缀与系统保留路径冲突（admin / user / api / apps 等）
+     * 2. 其他已启用应用 manifest home_routes 声明的路径落在本前缀之下
+     * 3. 其他已启用应用（path 模式）配置的路径前缀与本前缀重合或互为前缀
+     *
+     * @param string $prefix 本次提交的路径前缀（如 /blog）
+     * @return array{message: string, paths: array<int, array<string, string>>}|null
+     */
+    protected function findPathPrefixConflict(string $prefix): ?array
+    {
+        $prefix = '/' . trim($prefix, '/');
+        $conflicts = [];
+
+        // 1) 系统保留路径
+        $reservedMap = [
+            '/admin' => '后台管理',
+            '/user'  => '用户中心',
+            '/api'   => '系统 API',
+            '/apps'  => '应用静态资源',
+        ];
+        if (isset($reservedMap[$prefix])) {
+            $conflicts[] = [
+                'path'  => $prefix,
+                'app'   => '系统',
+                'title' => $reservedMap[$prefix] . '（保留路径）',
+            ];
+        }
+
+        foreach ($this->enabledApps() as $app) {
+            // 2) 其他应用声明的路由路径落在本前缀之下
+            $otherRoutes = ($app->manifest ?? [])['home_routes'] ?? [];
+            foreach ($otherRoutes as $path => $title) {
+                $path = '/' . trim((string) $path, '/');
+                if ($this->pathOverlaps($path, $prefix)) {
+                    $conflicts[] = [
+                        'path'  => $path,
+                        'app'   => $app->name ?: $app->app_id,
+                        'title' => (string) $title,
+                    ];
+                }
+            }
+
+            // 3) 其他应用（path 模式）配置的路径前缀重合（兼容 access_path_prefix / access_path 两种命名）
+            $appCode = 'app_' . str_replace('.', '_', $app->app_id) . '_';
+            if ((string) ConfigItem::where('code', $appCode . 'access_mode')->value('value') === 'path') {
+                foreach (['access_path_prefix', 'access_path'] as $key) {
+                    $otherPrefix = (string) ConfigItem::where('code', $appCode . $key)->value('value');
+                    if ($otherPrefix === '') {
+                        continue;
+                    }
+                    $otherPrefix = '/' . trim($otherPrefix, '/');
+                    if ($this->pathOverlaps($otherPrefix, $prefix)) {
+                        $conflicts[] = [
+                            'path'  => $otherPrefix,
+                            'app'   => $app->name ?: $app->app_id,
+                            'title' => '路径前缀',
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $this->buildConflictResult($conflicts, '路径前缀与已启用应用或系统保留路径冲突，无法保存');
+    }
+
+    /**
+     * 两个路径是否重合或互为前缀（/a 与 /a、/a 与 /a/b 均视为重合）
+     */
+    protected function pathOverlaps(string $a, string $b): bool
+    {
+        if ($a === '/' || $b === '/') {
+            return $a === $b;
+        }
+
+        return $a === $b || str_starts_with($a, $b . '/') || str_starts_with($b, $a . '/');
+    }
+
+    /**
+     * 已启用应用列表（排除本应用，仅已启用应用的路由才会实际注册）
+     *
+     * @return array<int, mixed>
+     */
+    protected function enabledApps(): array
+    {
+        try {
+            return AppModel::query()
+                ->where('status', AppStatus::ENABLED)
+                ->where('app_id', '!=', 'niuren.blog')
+                ->get()
+                ->all();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * 汇总冲突明细为返回结构（无冲突返回 null）
+     *
+     * @param array<int, array<string, string>> $conflicts
+     * @return array{message: string, paths: array<int, array<string, string>>}|null
+     */
+    protected function buildConflictResult(array $conflicts, string $reason): ?array
+    {
+        if ($conflicts === []) {
+            return null;
+        }
+
+        $lines = array_map(
+            fn ($c) => "路由 {$c['path']} 已被「{$c['app']}」占用（{$c['title']}）",
+            $conflicts
+        );
+
+        return [
+            'message' => $reason . '：' . implode('；', $lines) . '。请调整访问方式或前缀，或先禁用/卸载冲突应用。',
+            'paths'   => $conflicts,
+        ];
     }
 
     /**

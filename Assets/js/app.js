@@ -19,6 +19,8 @@
         var COOKIE_NAME = 'nr_visitor';
         var THEME_KEY = 'nr_theme';
         var COMMENT_META_COOKIE = 'nr_comment_meta';
+        // 前台基础路径（path 模式为前缀如 /blog，root/domain 模式为空串），视图注入
+        var NR_BASE = window.NR_BASE || '';
 
         /* -------------------------------------------------------------------
          * 访客身份：localStorage 优先，其次 Cookie，最后由服务端下发补齐
@@ -306,7 +308,7 @@
                     if (!pwd) { alert('请输入发布密码'); return; }
                     request(window.NR_VERIFY_URL, 'POST', { password: pwd })
                         .done(function () {
-                            window.location.href = window.NR_WRITE_URL || '/blog/write';
+                            window.location.href = window.NR_WRITE_URL || (NR_BASE + '/write');
                         })
                         .fail(function (xhr) {
                             alert((xhr.responseJSON && (xhr.responseJSON.msg || xhr.responseJSON.message)) || '密码验证失败');
@@ -317,7 +319,7 @@
                     if (e.key === 'Enter') { e.preventDefault(); $mask.find('.mom-pwd-confirm').trigger('click'); }
                 });
                 $mask.on('click', '.mom-pwd-cancel', function () {
-                    window.location.href = window.NR_LIST_URL || '/blog';
+                    window.location.href = window.NR_LIST_URL || (NR_BASE + '/');
                 });
                 setTimeout(function () { $mask.find('.mom-pwd-input').focus(); }, 60);
                 return;
@@ -328,7 +330,7 @@
             setTimeout(function () { $mask.find('.mom-pwd-input').focus(); }, 60);
 
             $mask.on('click', '.mom-pwd-cancel', function () {
-                window.location.href = window.NR_LIST_URL || '/blog';
+                window.location.href = window.NR_LIST_URL || (NR_BASE + '/');
             });
 
             $mask.on('click', '.mom-pwd-confirm', function () {
@@ -513,7 +515,7 @@
             optimisticLikers.push(currentVisitorNickname() || '访客');
             setLiked(postId, true, optimisticLikers);
 
-            request('/blog/like', 'POST', { post_id: postId, nickname: currentVisitorNickname() })
+            request(NR_BASE + '/like', 'POST', { post_id: postId, nickname: currentVisitorNickname() })
                 .done(function (data) {
                     setLiked(postId, !!data.liked, data.likers);
                 })
@@ -623,7 +625,7 @@
             if (!postId) { return; }
 
             showWxDeleteDialog(function () {
-                request('/blog/posts/' + postId, 'DELETE')
+                request(NR_BASE + '/posts/' + postId, 'DELETE')
                     .done(function () {
                         $card.fadeOut(200, function () { $(this).remove(); });
                     })
@@ -715,7 +717,7 @@
             feedState.loading = true;
             $('.mom-feed-loading').removeAttr('hidden');
 
-            request('/blog', 'GET', { page: feedState.page + 1 })
+            request(NR_BASE + '/', 'GET', { page: feedState.page + 1 })
                 .then(function (data) {
                     var items = (data && data.items) || [];
                     var $feed = $('.mom-feed');
@@ -812,7 +814,7 @@
             if ($list.data('loaded')) { return; }
             $list.html('<div class="comments-loading">加载中…</div>');
 
-            request('/blog/comments', 'GET', { post_id: postId })
+            request(NR_BASE + '/comments', 'GET', { post_id: postId })
                 .then(function (data) {
                     $list.empty();
                     var items = (data && data.items) || [];
@@ -924,7 +926,7 @@
             var $send = $bar.find('.mom-comment-send');
             $send.prop('disabled', true);
 
-            request('/blog/comments', 'POST', {
+            request(NR_BASE + '/comments', 'POST', {
                 post_id: $card.attr('data-post-id'),
                 nickname: nickname,
                 email: email,

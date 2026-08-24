@@ -26,11 +26,13 @@
 <script>
     // 密码门模式：验证成功后跳转写动态页（此时已持验证 Cookie，服务端放行）
     window.NR_PWD_GATE = true;
-    window.NR_VERIFY_URL = "{{ url('blog/verify-password') }}";
-    window.NR_LIST_URL = "{{ url('blog') }}";
-    window.NR_WRITE_URL = "{{ url('blog/write') }}";
+    // 前台基础路径（path 模式为前缀如 /blog，root/domain 模式为空串）
+    window.NR_BASE = @json($basePath ?? '');
+    window.NR_VERIFY_URL = "{{ url(($basePath ?? '') . '/verify-password') }}";
+    window.NR_LIST_URL = "{{ url(($basePath ?? '') . '/') }}";
+    window.NR_WRITE_URL = "{{ url(($basePath ?? '') . '/write') }}";
 </script>
 <script src="{{ asset('CmsProUi/component/layui/layui.js') }}"></script>
-<script src="{{ asset('apps/niuren.blog/js/app.js') }}?v=1.4.21"></script>
+<script src="{{ asset('apps/niuren.blog/js/app.js') }}?v=1.4.30"></script>
 </body>
 </html>

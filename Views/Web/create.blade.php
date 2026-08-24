@@ -14,7 +14,7 @@
 
 <!-- 顶部导航栏 -->
 <div class="mom-nav is-solid">
-    <a class="mom-nav-back" href="{{ url('blog') }}" title="取消">
+    <a class="mom-nav-back" href="{{ url(($basePath ?? '') . '/') }}" title="取消">
         <i class="fa fa-angle-left"></i>
     </a>
     <h1 class="mom-nav-title">发表动态</h1>
@@ -41,12 +41,14 @@
 
 <script>
     // 上传接口返回结构：{ code: 0, data: { url, path } }
-    window.NR_UPLOAD_URL = "{{ url('blog/upload') }}";
-    window.NR_PUBLISH_URL = "{{ url('blog/publish') }}";
-    window.NR_LIST_URL = "{{ url('blog') }}";
+    // 前台基础路径（path 模式为前缀如 /blog，root/domain 模式为空串）
+    window.NR_BASE = @json($basePath ?? '');
+    window.NR_UPLOAD_URL = "{{ url(($basePath ?? '') . '/upload') }}";
+    window.NR_PUBLISH_URL = "{{ url(($basePath ?? '') . '/publish') }}";
+    window.NR_LIST_URL = "{{ url(($basePath ?? '') . '/') }}";
     window.NR_BLOG_NAME = @json($blog['name'] ?? '朋友圈');
 </script>
 <script src="{{ asset('CmsProUi/component/layui/layui.js') }}"></script>
-<script src="{{ asset('apps/niuren.blog/js/app.js') }}?v=1.4.21"></script>
+<script src="{{ asset('apps/niuren.blog/js/app.js') }}?v=1.4.30"></script>
 </body>
 </html>

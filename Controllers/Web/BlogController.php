@@ -55,6 +55,8 @@ class BlogController
             'pageSize' => $paginator->perPage(),
             'hasMore' => $paginator->hasMorePages(),
             'blog' => $this->webSettings(),
+            // 前台基础路径（path 模式为前缀如 /blog，其余模式为空串）
+            'basePath' => $this->webBasePath(),
             // 首屏直接标红当前访客已赞文章，避免前端二次请求造成状态闪烁
             'likedIds' => $this->likedPostIds($postIds, $request),
             // 每篇文章的点赞昵称列表（首屏渲染）
@@ -127,9 +129,10 @@ class BlogController
         return view('niuren.blog::Web.show', [
             'post' => $post,
             'blog' => $this->webSettings(),
+            'basePath' => $this->webBasePath(),
             'likedIds' => $this->likedPostIds([$post->id], $request),
             'likersMap' => $this->likersByPost([$post->id]),
-            // 博主昵称（已验证发布密码或后台登录时为博客名称，评论框自动填充）
+            // 博主昵称（已验证发布密码或后台登录时为博客名称，评论框昵称自动填充）
             'ownerNickname' => $this->ownerNickname($request),
         ]);
     }
@@ -160,11 +163,13 @@ class BlogController
         if (! $this->canPublish(request())) {
             return view('niuren.blog::Web.gate', [
                 'blog' => $this->webSettings(),
+                'basePath' => $this->webBasePath(),
             ]);
         }
 
         return view('niuren.blog::Web.create', [
             'blog' => $this->webSettings(),
+            'basePath' => $this->webBasePath(),
         ]);
     }
 
@@ -314,6 +319,29 @@ class BlogController
             // 前台默认显示模式（light 浅色 / dark 深色），访客本地选择优先
             'theme_mode' => $this->configValue('theme_mode') === 'dark' ? 'dark' : 'light',
         ];
+    }
+
+    /**
+     * 前台基础路径（root/domain 模式为空串，path 模式为路径前缀如 /blog）
+     *
+     * 视图注入 window.NR_BASE 供前端 AJAX 与页面跳转拼接使用，
+     * 保证切换访问方式后前台请求路径始终正确。
+     */
+    protected function webBasePath(): string
+    {
+        // 默认口径与 ServiceProvider::registerWebRoutes() 保持一致：无配置时视为 path + /blog
+        $mode = $this->configValue('access_mode');
+        if ($mode === '') {
+            $mode = 'path';
+        }
+        if ($mode !== 'path') {
+            return '';
+        }
+
+        $prefix = $this->configValue('access_path_prefix') ?: '/blog';
+        $prefix = rtrim(str_replace('\\', '/', trim($prefix)), '/');
+
+        return $prefix !== '' ? '/' . ltrim($prefix, '/') : '';
     }
 
     /**

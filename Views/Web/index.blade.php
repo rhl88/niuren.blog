@@ -22,7 +22,7 @@
         <button type="button" class="mom-icon-btn mom-theme-toggle" title="切换深浅色" data-action="theme">
             <i class="fa fa-moon-o"></i>
         </button>
-        <a class="mom-icon-btn" href="{{ url('blog/write') }}" title="发布动态">
+        <a class="mom-icon-btn" href="{{ url(($basePath ?? '') . '/write') }}" title="发布动态">
             <i class="fa fa-camera"></i>
         </a>
     </div>
@@ -173,8 +173,10 @@
     window.NR_OWNER_NICKNAME = @json($ownerNickname);
     // 后台登录时显示删除入口
     window.NR_IS_ADMIN = {{ !empty($isAdmin) ? 'true' : 'false' }};
+    // 前台基础路径（path 模式为前缀如 /blog，root/domain 模式为空串）
+    window.NR_BASE = @json($basePath ?? '');
 </script>
 <script src="{{ asset('CmsProUi/component/layui/layui.js') }}"></script>
-<script src="{{ asset('apps/niuren.blog/js/app.js') }}?v=1.4.28"></script>
+<script src="{{ asset('apps/niuren.blog/js/app.js') }}?v=1.4.30"></script>
 </body>
 </html>

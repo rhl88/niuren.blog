@@ -93,6 +93,16 @@
                                 访问方式<b>三选一</b>：仅当前所选方式的参数参与校验并生效；
                                 切换方式时另一方式的参数值会保留，来回切换不丢失已填配置。
                             </blockquote>
+                            {{-- 占用检测提示区：根路径 / 路径前缀模式下实时检测冲突 --}}
+                            <div id="accessConflictTip" class="layui-form-item" style="display:none;">
+                                <label class="layui-form-label" style="color:#FF5722;">占用冲突</label>
+                                <div class="layui-input-block">
+                                    <div class="layui-alert layui-alert-red" style="margin:0;">
+                                        <div id="accessConflictMsg" style="word-break:break-all;"></div>
+                                        <ul id="accessConflictList" style="margin:6px 0 0; padding-left:18px;"></ul>
+                                    </div>
+                                </div>
+                            </div>
                             @foreach($accessItems as $item)
                                 @php
                                     $isDomain = str_ends_with($item->code, 'access_domain');
@@ -118,7 +128,8 @@
                                         @else
                                             <input type="text" name="{{ $item->code }}" value="{{ $item->value }}"
                                                    placeholder="{{ $isDomain ? '如 blog.example.com' : '如 /blog' }}"
-                                                   class="layui-input" style="max-width: 360px;">
+                                                   class="layui-input" style="max-width: 360px;"
+                                                   data-role="access-prefix">
                                         @endif
                                         @if(!empty($item->tips))
                                             <div class="layui-form-mid layui-word-aux">{{ $item->tips }}</div>
@@ -187,9 +198,59 @@ layui.use(['form', 'jquery', 'element', 'upload'], function(){
         $('[data-depends]').each(function(){
             $(this).toggle($(this).data('depends') === mode);
         });
+        checkAccessConflict();
     }
-    syncAccessMode();
+
+    // 占用检测：根路径 / 路径前缀模式下实时调用预检接口，展示冲突明细
+    var checkPending = null;
+    function checkAccessConflict(){
+        var mode = $('select[name$="_access_mode"]').val() || 'root';
+        if (mode !== 'root' && mode !== 'path') {
+            hideConflictTip();
+            return;
+        }
+        var prefix = mode === 'path' ? ($('[data-role="access-prefix"]').val() || '').trim() : '';
+        if (mode === 'path' && prefix.replace(/\//g, '') === '') {
+            hideConflictTip();
+            return;
+        }
+
+        if (checkPending) { checkPending.abort(); }
+        checkPending = $.ajax({
+            url: "{{ url('api/admin/niuren/blog/setting/check') }}",
+            type: 'POST',
+            data: { access_mode: mode, access_path_prefix: prefix },
+            success: function(res){
+                if (res && res.code === 40002) {
+                    showConflictTip(res);
+                } else {
+                    hideConflictTip();
+                }
+            },
+            error: function(){ /* 预检失败不打扰用户，保存时后端会兜底拦截 */ }
+        });
+    }
+
+    function showConflictTip(res){
+        $('#accessConflictMsg').text(res.message || '当前访问配置与已启用应用冲突');
+        var list = $('#accessConflictList').empty();
+        $.each((res.data && res.data.conflicts) || [], function(i, c){
+            $('<li>').text('路径 ' + c.path + ' 已被「' + c.app + '」占用（' + c.title + '）').appendTo(list);
+        });
+        $('#accessConflictTip').show();
+    }
+
+    function hideConflictTip(){
+        $('#accessConflictTip').hide();
+    }
+
     form.on('select(accessMode)', syncAccessMode);
+    // 前缀输入变化时重新检测（输入防抖 400ms）
+    var prefixTimer = null;
+    $(document).on('input', '[data-role="access-prefix"]', function(){
+        clearTimeout(prefixTimer);
+        prefixTimer = setTimeout(checkAccessConflict, 400);
+    });
 
     $.ajaxSetup({
         headers: { 'X-CSRF-TOKEN': "{{ csrf_token() }}" },
@@ -203,6 +264,9 @@ layui.use(['form', 'jquery', 'element', 'upload'], function(){
         }
     });
 
+    // 首次联动需在 CSRF 头配置完成后执行，保证预检请求合法
+    syncAccessMode();
+
     // 一次性提交全部页签字段：非当前方式的参数原样提交，服务端按「保留不清空」策略处理，来回切换不丢已填配置
     form.on('submit(saveSetting)', function(data){
         $.ajax({
@@ -210,12 +274,25 @@ layui.use(['form', 'jquery', 'element', 'upload'], function(){
             type: 'POST',
             data: data.field,
             success: function(res){
+                if (res.code !== 0) {
+                    // 占用冲突：展示明细并滚动到提示区
+                    if (res.code === 40002) {
+                        showConflictTip(res);
+                        layer.msg(res.message || '存在占用冲突，无法保存', { icon: 2, time: 3000 });
+                    } else {
+                        layer.msg(res.message || '保存失败', { icon: 2 });
+                    }
+                    return;
+                }
+                hideConflictTip();
                 layer.msg(res.message || '保存成功', { icon: 1 });
             },
             error: function(xhr){
                 if (xhr.status === 401) return;
                 var msg = '保存失败';
-                try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+                var res = null;
+                try { res = JSON.parse(xhr.responseText); msg = res.message || msg; } catch(e) {}
+                if (res && res.code === 40002) { showConflictTip(res); }
                 layer.msg(msg, { icon: 2 });
             }
         });

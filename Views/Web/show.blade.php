@@ -14,7 +14,7 @@
 
 <!-- 顶部导航栏 -->
 <div class="mom-nav is-solid">
-    <a class="mom-nav-back" href="{{ url('blog') }}" title="返回">
+    <a class="mom-nav-back" href="{{ url(($basePath ?? '') . '/') }}" title="返回">
         <i class="fa fa-angle-left"></i>
     </a>
     <h1 class="mom-nav-title">动态详情</h1>
@@ -98,7 +98,7 @@
     </article>
 
     <div class="mom-detail-actions">
-        <a href="{{ url('blog') }}" class="mom-back-btn"><i class="fa fa-chevron-left"></i> 返回朋友圈</a>
+        <a href="{{ url(($basePath ?? '') . '/') }}" class="mom-back-btn"><i class="fa fa-chevron-left"></i> 返回朋友圈</a>
     </div>
 </div>
 
@@ -133,8 +133,10 @@
 <script>
     // 博主昵称（已验证发布密码或后台登录时为博客名称）：评论框昵称自动填充
     window.NR_OWNER_NICKNAME = @json($ownerNickname);
+    // 前台基础路径（path 模式为前缀如 /blog，root/domain 模式为空串）
+    window.NR_BASE = @json($basePath ?? '');
 </script>
 <script src="{{ asset('CmsProUi/component/layui/layui.js') }}"></script>
-<script src="{{ asset('apps/niuren.blog/js/app.js') }}?v=1.4.21"></script>
+<script src="{{ asset('apps/niuren.blog/js/app.js') }}?v=1.4.30"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@ use App\Apps\NiurenBlog\Controllers\Web\UploadApiController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/setting/save', [SettingApiController::class, 'save']);
+Route::post('/setting/check', [SettingApiController::class, 'check']);
 Route::post('/upload', [UploadApiController::class, 'uploadImage']);
 Route::get('/posts/list', [PostApiController::class, 'list']);
 Route::post('/posts/save', [PostApiController::class, 'save']);

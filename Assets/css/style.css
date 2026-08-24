@@ -1133,87 +1133,145 @@ body[data-page="feed"] .mom-feed {
 }
 
 /* =========================================================================
-   微信风格 ActionSheet（删除动态确认，1:1 复刻微信 iOS）
-   半透明黑遮罩 + 底部弹出白色圆角操作菜单（红色删除 + 取消）
+   微信风格居中确认弹窗（删除动态确认，1:1 复刻微信 iOS，PC/移动统一）
+   半透明黑遮罩 + 居中白色圆角弹窗（标题 + 说明 + 取消/红色删除）
    ========================================================================= */
-.wx-sheet-mask {
+.wx-dialog-mask {
     position: fixed;
     inset: 0;
     z-index: 9999;
     background: rgba(0, 0, 0, 0.4);
     display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: center;
     opacity: 0;
     transition: opacity 0.2s ease;
 }
 
-.wx-sheet-mask.show {
+.wx-dialog-mask.show {
     opacity: 1;
 }
 
-.wx-sheet {
-    display: flex;
-    flex-direction: column;
-    padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0px));
-    transform: translateY(100%);
-    transition: transform 0.25s ease-out;
-}
-
-.wx-sheet-mask.show .wx-sheet {
-    transform: translateY(0);
-}
-
-.wx-sheet-btn {
-    height: 56px;
-    border: 0;
-    border-radius: 12px;
+.wx-dialog {
+    width: 320px;
+    max-width: calc(100vw - 48px);
     background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    transform: scale(0.85);
+    opacity: 0;
+    transition: transform 0.22s ease-out, opacity 0.22s ease-out;
+}
+
+.wx-dialog-mask.show .wx-dialog {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.wx-dialog-title {
+    padding: 26px 24px 0;
     font-size: 17px;
-    line-height: 56px;
+    font-weight: 500;
+    color: #000000;
+    text-align: center;
+}
+
+.wx-dialog-content {
+    padding: 10px 24px 26px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #888888;
+    text-align: center;
+    word-break: break-all;
+}
+
+.wx-dialog-footer {
+    display: flex;
+    border-top: 1px solid #ececec;
+}
+
+.wx-dialog-btn {
+    flex: 1;
+    height: 48px;
+    border: 0;
+    background: transparent;
+    font-size: 17px;
+    line-height: 48px;
     padding: 0;
     cursor: pointer;
     outline: none;
-    -webkit-tap-highlight-color: transparent;
     user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
-.wx-sheet-btn:active {
-    background: #ececec;
+.wx-dialog-btn + .wx-dialog-btn {
+    border-left: 1px solid #ececec;
 }
 
-.wx-sheet-danger {
-    color: #fa5151;
+.wx-dialog-btn:active,
+.wx-dialog-btn:hover {
+    background: #f5f5f5;
 }
 
-.wx-sheet-cancel {
-    margin-top: 8px;
+.wx-dialog-cancel {
     color: #000000;
 }
 
-/* 深色模式：微信深色 ActionSheet（深灰面板 + 白色文字） */
-[data-theme="dark"] .wx-sheet-btn {
+.wx-dialog-danger {
+    color: #fa5151;
+}
+
+/* 深色模式：微信深色弹窗（深灰面板 + 白色文字） */
+[data-theme="dark"] .wx-dialog {
     background: #2c2c2e;
 }
 
-[data-theme="dark"] .wx-sheet-btn:active {
-    background: #3a3a3c;
-}
-
-[data-theme="dark"] .wx-sheet-cancel {
+[data-theme="dark"] .wx-dialog-title {
     color: #ffffff;
 }
 
+[data-theme="dark"] .wx-dialog-content {
+    color: #8e8e93;
+}
+
+[data-theme="dark"] .wx-dialog-footer,
+[data-theme="dark"] .wx-dialog-btn + .wx-dialog-btn {
+    border-color: #3a3a3c;
+}
+
+[data-theme="dark"] .wx-dialog-cancel {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .wx-dialog-btn:active,
+[data-theme="dark"] .wx-dialog-btn:hover {
+    background: #3a3a3c;
+}
+
 @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .wx-sheet-btn {
+    :root:not([data-theme]) .wx-dialog {
         background: #2c2c2e;
     }
 
-    :root:not([data-theme]) .wx-sheet-btn:active {
-        background: #3a3a3c;
+    :root:not([data-theme]) .wx-dialog-title {
+        color: #ffffff;
     }
 
-    :root:not([data-theme]) .wx-sheet-cancel {
+    :root:not([data-theme]) .wx-dialog-content {
+        color: #8e8e93;
+    }
+
+    :root:not([data-theme]) .wx-dialog-footer,
+    :root:not([data-theme]) .wx-dialog-btn + .wx-dialog-btn {
+        border-color: #3a3a3c;
+    }
+
+    :root:not([data-theme]) .wx-dialog-cancel {
         color: #ffffff;
+    }
+
+    :root:not([data-theme]) .wx-dialog-btn:active,
+    :root:not([data-theme]) .wx-dialog-btn:hover {
+        background: #3a3a3c;
     }
 }

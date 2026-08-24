@@ -574,51 +574,55 @@
         });
 
         /* -------------------------------------------------------------------
-         * 微信风格 ActionSheet（1:1 复刻微信 iOS 删除确认）
-         * 底部弹出白色圆角操作菜单：红色「删除」+ 取消，点遮罩/取消关闭
+         * 微信风格居中确认弹窗（1:1 复刻微信 iOS 删除确认，PC/移动统一）
+         * 居中白色圆角弹窗：标题 + 说明 + 左「取消」右红色「删除」，点遮罩/取消关闭
          * ------------------------------------------------------------------- */
-        var $wxSheet = null;
+        var $wxDialog = null;
 
-        function hideWxSheet() {
-            if (!$wxSheet) { return; }
-            var $mask = $wxSheet;
-            $wxSheet = null;
+        function hideWxDialog() {
+            if (!$wxDialog) { return; }
+            var $mask = $wxDialog;
+            $wxDialog = null;
             $mask.removeClass('show');
             setTimeout(function () { $mask.remove(); }, 250);
         }
 
-        function showWxDeleteSheet(onConfirm) {
-            hideWxSheet();
-            $wxSheet = $(
-                '<div class="wx-sheet-mask">'
-                + '<div class="wx-sheet" role="dialog" aria-label="删除动态">'
-                + '<button type="button" class="wx-sheet-btn wx-sheet-danger">删除</button>'
-                + '<button type="button" class="wx-sheet-btn wx-sheet-cancel">取消</button>'
+        function showWxDeleteDialog(onConfirm) {
+            hideWxDialog();
+            $wxDialog = $(
+                '<div class="wx-dialog-mask">'
+                + '<div class="wx-dialog" role="alertdialog" aria-modal="true" aria-label="删除动态">'
+                + '<div class="wx-dialog-title">删除</div>'
+                + '<div class="wx-dialog-content">是否删除该动态？删除后该动态的点赞和评论将一并删除</div>'
+                + '<div class="wx-dialog-footer">'
+                + '<button type="button" class="wx-dialog-btn wx-dialog-cancel">取消</button>'
+                + '<button type="button" class="wx-dialog-btn wx-dialog-danger">删除</button>'
+                + '</div>'
                 + '</div>'
                 + '</div>'
             );
-            $(document.body).append($wxSheet);
-            // 先渲染再添加 show 类，确保滑入过渡动画生效
-            setTimeout(function () { $wxSheet.addClass('show'); }, 20);
+            $(document.body).append($wxDialog);
+            // 先渲染再添加 show 类，确保缩放淡入过渡动画生效
+            setTimeout(function () { $wxDialog.addClass('show'); }, 20);
 
-            // 点击遮罩关闭（点在操作菜单上不关闭）
-            $wxSheet.on('click', function (e) {
-                if (e.target === this) { hideWxSheet(); }
+            // 点击遮罩关闭（点在弹窗上不关闭）
+            $wxDialog.on('click', function (e) {
+                if (e.target === this) { hideWxDialog(); }
             });
-            $wxSheet.find('.wx-sheet-cancel').on('click', hideWxSheet);
-            $wxSheet.find('.wx-sheet-danger').on('click', function () {
-                hideWxSheet();
+            $wxDialog.find('.wx-dialog-cancel').on('click', hideWxDialog);
+            $wxDialog.find('.wx-dialog-danger').on('click', function () {
+                hideWxDialog();
                 onConfirm();
             });
         }
 
-        // 管理员删除动态：微信风格 ActionSheet 二次确认，成功移除卡片
+        // 管理员删除动态：微信风格居中弹窗二次确认，成功移除卡片
         $(document).on('click', '.mom-post-delete', function () {
             var $card = $(this).closest('.mom-card');
             var postId = $card.data('post-id');
             if (!postId) { return; }
 
-            showWxDeleteSheet(function () {
+            showWxDeleteDialog(function () {
                 request('/blog/posts/' + postId, 'DELETE')
                     .done(function () {
                         $card.fadeOut(200, function () { $(this).remove(); });

@@ -8,7 +8,7 @@
     <title>{{ $blog['name'] }}</title>
     <link rel="stylesheet" href="{{ asset('CmsProUi/component/pear/css/pear.css') }}">
     <link rel="stylesheet" href="{{ asset('CmsProUi/font-awesome/4.7.0/css/font-awesome.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('apps/niuren.blog/css/style.css') }}?v=1.4.27">
+    <link rel="stylesheet" href="{{ asset('apps/niuren.blog/css/style.css') }}?v=1.4.28">
 </head>
 <body data-page="feed">
 
@@ -175,6 +175,6 @@
     window.NR_IS_ADMIN = {{ !empty($isAdmin) ? 'true' : 'false' }};
 </script>
 <script src="{{ asset('CmsProUi/component/layui/layui.js') }}"></script>
-<script src="{{ asset('apps/niuren.blog/js/app.js') }}?v=1.4.27"></script>
+<script src="{{ asset('apps/niuren.blog/js/app.js') }}?v=1.4.28"></script>
 </body>
 </html>
